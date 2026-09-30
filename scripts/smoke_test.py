@@ -1,26 +1,25 @@
 """CPU smoke test: environment + EfficientNet-B4 forward pass.
 This checks that the software runs. It is NOT a research result."""
-import platform
 import time
 
 import timm
 import torch
 
-from deeptrace.utils.runtime import resolve_device, set_seed
+from deeptrace.common.device import describe_environment, resolve_device
+from deeptrace.common.seed import seed_everything
 
 
 def main() -> None:
-    set_seed(42)
+    seed_everything(42)
     device = resolve_device("auto")
-    print(f"python  : {platform.python_version()}")
-    print(f"torch   : {torch.__version__}")
-    print(f"timm    : {timm.__version__}")
-    print(f"device  : {device}")
+    for key, value in describe_environment().items():
+        print(f"{key:15}: {value}")
+    print(f"{'timm':15}: {timm.__version__}")
+    print(f"{'device':15}: {device}")
 
     # pretrained=False: no download needed for a pure software check
     model = timm.create_model("efficientnet_b4", pretrained=False, num_classes=2).to(device).eval()
-    n_params = sum(p.numel() for p in model.parameters())
-    print(f"params  : {n_params:,}")
+    print(f"{'params':15}: {sum(p.numel() for p in model.parameters()):,}")
 
     x = torch.randn(2, 3, 380, 380, device=device)  # 380 = EfficientNet-B4 native resolution
     start = time.time()
@@ -31,7 +30,7 @@ def main() -> None:
     assert logits.shape == (2, 2), f"Unexpected logits shape: {tuple(logits.shape)}"
     probs = torch.softmax(logits, dim=1)
     assert torch.allclose(probs.sum(dim=1), torch.ones(2, device=device), atol=1e-5)
-    print(f"logits  : shape {tuple(logits.shape)}, forward {elapsed:.2f}s")
+    print(f"{'logits':15}: shape {tuple(logits.shape)}, forward {elapsed:.2f}s")
     print("SMOKE TEST PASSED")
 
 
