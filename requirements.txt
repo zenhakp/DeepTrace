@@ -1,0 +1,5 @@
+# Step 1 foundation only. Torch/torchvision/timm are added in the detector step
+# (Colab already ships torch; local CPU install is explained there).
+numpy
+pyyaml
+pytest

@@ -1,0 +1,13 @@
+# Data and model artifacts must NEVER be committed (dataset terms + repo size)
+deeptrace_data/
+*.pt
+*.pth
+*.ckpt
+*.mp4
+*.avi
+
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
