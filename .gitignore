@@ -1,13 +1,21 @@
-# Data and model artifacts must NEVER be committed (dataset terms + repo size)
-deeptrace_data/
+# environments
+.venv/
+.venv_old_broken/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# large / restricted artifacts: never commit
+data/
+checkpoints/
+experiments/
+results/
 *.pt
 *.pth
 *.ckpt
 *.mp4
 *.avi
 
-__pycache__/
-*.egg-info/
-.pytest_cache/
-.ipynb_checkpoints/
-.venv/
+# secrets
+.env

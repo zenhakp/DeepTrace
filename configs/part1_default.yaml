@@ -1,5 +1,0 @@
-# Design choices for Part 1. Values are added here step by step, never silently.
-run:
-  seed: 42        # global random seed
-  device: auto    # cpu | cuda | auto
-  deterministic: false   # true = slower, but bitwise-repeatable GPU runs
