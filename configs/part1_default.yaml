@@ -20,3 +20,13 @@ datasets:
 split:
   seed: 42
   fractions: {train: 0.8, val: 0.1, test: 0.1}
+
+# Face-crop preprocessing (design choices; changing any of them creates a separate output folder).
+preprocess:
+  face_model_url: https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+  face_model_file: face_detection_yunet_2023mar.onnx
+  face_score_threshold: 0.6
+  crop_margin: 1.3          # square crop side = margin x max(face width, face height)
+  output_size: 380          # EfficientNet-B4 native resolution
+  jpeg_quality: 95
+  gray_chroma_eps: 2.0      # a real photo with mean channel difference below this counts as grayscale

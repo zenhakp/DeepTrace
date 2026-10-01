@@ -41,3 +41,13 @@ Measured by our inspection of the pinned download (DeepFakeFace, revision eb2a54
   distinct sizes) and about 10% are grayscale. Full-dataset measurement: see the split report from
   scripts/build_manifest.py. Image size/colour mode could act as a shortcut; preprocessing must
   neutralise it (decision pending), and the size-only rule baseline is reported next to detector results.
+
+## Shortcut finding and preprocessing design (Step 6)
+Measured on all 120,000 images: real images are never exactly 512x512 (98.25% non-square, 9.47%
+grayscale); every manipulated image is exactly 512x512 RGB. A rule "predict MANIPULATED iff 512x512"
+scores accuracy/precision/recall 1.0 on train, validation and test. Raw-image accuracy is therefore
+meaningless. Mitigation (design choices): face crop with identical geometry and resize for all images,
+group-level colour-mode matching, identical JPEG re-encoding, group kept only if a face is found in all
+its images. Remaining shortcuts are measured by the metadata audit in the preprocessing report
+(native crop size, face area ratio, JPEG quantization, bytes/pixel, chroma, sharpness).
+A deliberately uncontrolled "naive" pipeline will be run once as an ablation to show shortcut learning.
