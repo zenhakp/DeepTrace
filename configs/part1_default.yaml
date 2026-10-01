@@ -3,3 +3,15 @@ run:
   seed: 42        # global random seed
   device: auto    # cpu | cuda | auto
   deterministic: false   # true = slower, but bitwise-repeatable GPU runs
+
+# Datasets are pinned by full commit sha so experiments are reproducible.
+# 'files' must list exactly what to download (a whole-repo download is refused).
+datasets:
+  deepfakeface:            # primary: train / validation / in-domain test
+    hf_repo: OpenRL/DeepFakeFace
+    revision: eb2a54fbf2567790bd3dc61d09fdaade6bb6c31c
+    files: [wiki.zip, inpainting.zip, insight.zip, text2img.zip]
+  openfake:                # external test only; a face-filtered subset is chosen in a later step
+    hf_repo: ComplexDataLab/OpenFake
+    revision: 3247b942f18d39d1fd476b1077852af033d35d8c
+    files: []
