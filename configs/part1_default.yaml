@@ -30,3 +30,18 @@ preprocess:
   output_size: 380          # EfficientNet-B4 native resolution
   jpeg_quality: 95
   gray_chroma_eps: 2.0      # a real photo with mean channel difference below this counts as grayscale
+
+# Data loading. Degradations use the same probabilities for every image (the label is never an
+# input to them) and only run in training.
+loading:
+  image_size: 380
+  batch_size: 16
+  num_workers: 2
+  hflip: true
+  degrade:
+    p_blur: 0.3
+    blur_sigma: [0.1, 1.5]
+    p_resize: 0.3
+    resize_scale: [0.5, 1.0]
+    p_jpeg: 0.5
+    jpeg_quality: [40, 95]

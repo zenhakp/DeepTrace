@@ -51,3 +51,20 @@ group-level colour-mode matching, identical JPEG re-encoding, group kept only if
 its images. Remaining shortcuts are measured by the metadata audit in the preprocessing report
 (native crop size, face area ratio, JPEG quantization, bytes/pixel, chroma, sharpness).
 A deliberately uncontrolled "naive" pipeline will be run once as an ablation to show shortcut learning.
+
+## Preprocessing results (measured, full run, laptop CPU, about 1h49m)
+Settings: YuNet detector (score >= 0.6), square crop 1.3x face box, 380x380, bicubic, JPEG q95,
+colour-mode matching per group, a group kept only if a face is found in all 4 images.
+- Face detection rate: real 98.81%, inpainting 98.52%, insight 98.48%, text2img 98.85%.
+- Groups kept: train 22,759/24,000, val 2,848/3,000, test 2,836/3,000 (28,443 total).
+  Kept images: 28,443 real and 85,329 manipulated (ratio exactly 1:3).
+- Median native crop side: real 160 px, manipulated 212 px.
+- Single-feature shortcut audit (strength = max(AUC, 1-AUC); 0.5 = no information):
+  sharpness 0.502, mean_chroma 0.541, face_area_ratio 0.571, native_crop_side 0.626,
+  bytes_per_px 0.868, q_lum_mean (source JPEG quantization) 0.981.
+- Interpretation: q_lum_mean and bytes_per_px describe the source files before our re-encoding. They show
+  that real and fake images have different compression histories. Whether traces survive the crop,
+  resize and re-encode is NOT yet measured.
+- Defences (design choices): class-independent degradation augmentation in training; a matched
+  evaluation subset (q_lum_mean distribution equalised across classes); pair-matched re-preprocessing
+  kept as a possible later ablation. Metrics are reported on the full test split AND the matched subset.
