@@ -45,3 +45,17 @@ loading:
     resize_scale: [0.5, 1.0]
     p_jpeg: 0.5
     jpeg_quality: [40, 95]
+
+# Training (design choices, untuned).
+train:
+  epochs: 3
+  lr: 0.0002
+  weight_decay: 0.01
+  warmup_steps: 300
+  amp: true               # mixed precision, used only on CUDA
+  fakes_per_real: 1       # class-balanced epochs: all real + this many fakes per real, re-drawn each epoch
+  ckpt_every_steps: 500
+  log_every_steps: 50
+  pretrained: true        # ImageNet initialisation (weights downloaded from the Hugging Face Hub)
+  drop_rate: 0.2
+

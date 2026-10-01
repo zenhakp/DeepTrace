@@ -44,3 +44,16 @@ class Detector:
                 "model_name": MODEL_NAME,
             })
         return out
+
+
+def load_detector(path, device: str = "cpu"):
+    """Load a detector from a best.pt checkpoint written by training. Returns (Detector, meta)."""
+    from deeptrace.common.paths import require_checkpoint
+
+    p = require_checkpoint(path)
+    ck = torch.load(p, map_location="cpu", weights_only=True)
+    if not isinstance(ck, dict) or "model" not in ck or "meta" not in ck:
+        raise ValueError(f"Invalid checkpoint (expected 'model' and 'meta', i.e. best.pt, not last.pt): {p}")
+    model = build_model(pretrained=False, drop_rate=0.0)
+    model.load_state_dict(ck["model"])
+    return Detector(model, device), ck["meta"]

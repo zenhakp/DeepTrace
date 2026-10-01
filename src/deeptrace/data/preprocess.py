@@ -285,3 +285,10 @@ def summarize_faces(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "kept_images_by_class": dict(kept_images),
         "median_native_crop_side": {k: statistics.median(v) for k, v in side.items()},
     }
+
+
+def faces_locations(paths, dataset: str, params: Dict[str, Any]):
+    """(crops_dir, faces_manifest_csv) for the given preprocessing parameters."""
+    tag = f"s{params['output_size']}_m{params['crop_margin']}_q{params['jpeg_quality']}"
+    base = paths.processed / dataset
+    return base / f"faces_{tag}", base / f"faces_{tag}_manifest.csv"
