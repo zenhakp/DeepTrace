@@ -15,3 +15,8 @@ datasets:
     hf_repo: ComplexDataLab/OpenFake
     revision: 3247b942f18d39d1fd476b1077852af033d35d8c
     files: []
+
+# Leakage-safe split. Unit = group: one real photo plus every fake derived from it.
+split:
+  seed: 42
+  fractions: {train: 0.8, val: 0.1, test: 0.1}
