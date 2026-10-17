@@ -15,7 +15,6 @@ from deeptrace.common.config import load_config
 from deeptrace.common.device import resolve_device
 from deeptrace.common.paths import get_paths
 from deeptrace.data.dataset import FaceCropDataset, class_counts, load_split_rows, make_loader
-from deeptrace.data.download import dataset_entry
 from deeptrace.data.preprocess import faces_locations, params_from_cfg
 from deeptrace.evaluation.metrics import classification_metrics, per_method_report
 from deeptrace.evaluation.predict import predict_rows
@@ -41,7 +40,7 @@ def main() -> None:
 
     cfg = load_config(a.config)
     device = resolve_device(cfg["run"]["device"])
-    entry = dataset_entry(cfg, a.dataset)
+    entry = cfg.get("datasets", {}).get(a.dataset, {})   # external sets have no pinned revision
     pr = params_from_cfg(cfg)
     paths = get_paths(a.root)
     crops_dir, faces_csv = faces_locations(paths, a.dataset, pr)
@@ -63,7 +62,7 @@ def main() -> None:
 
     metrics = classification_metrics([r["label"] for r in records], [r["fake_prob"] for r in records], a.threshold)
     report = {
-        "dataset": a.dataset, "dataset_revision": entry["revision"], "split": a.split,
+        "dataset": a.dataset, "dataset_revision": entry.get("revision"), "split": a.split,
         "matched_subset": a.matched_ids, "limit": a.limit, "n_images": len(rows),
         "class_distribution": class_counts(rows), "threshold": a.threshold,
         "checkpoint": str(ckpt), "checkpoint_epoch": meta["epoch"], "checkpoint_global_step": meta["global_step"],
@@ -73,7 +72,7 @@ def main() -> None:
         "note": "Threshold 0.5 is a design choice; ROC-AUC does not depend on it. per_method: for 'real' the share "
                 "predicted MANIPULATED is the false-positive rate; for fake methods it is recall.",
     }
-    suffix = f"{a.split}" + ("_matched" if a.matched_ids else "") + (f"_limit{a.limit}" if a.limit else "")
+    suffix = f"{a.dataset}_{a.split}" + ("_matched" if a.matched_ids else "") + (f"_limit{a.limit}" if a.limit else "")
     out_dir = paths.experiments / a.run_name
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"eval_{suffix}.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

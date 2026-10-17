@@ -8,3 +8,4 @@ pytest>=7.4
 huggingface_hub>=0.20
 pillow>=9.0
 opencv-python-headless>=4.8
+pyarrow>=14
