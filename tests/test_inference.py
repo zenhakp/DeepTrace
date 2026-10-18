@@ -63,3 +63,10 @@ def test_prepare_returns_a_model_ready_square_crop(tmp_path):
     x, info, crop = _det().prepare(_image(tmp_path))
     assert tuple(x.shape) == (1, 3, 64, 64) and torch.isfinite(x).all()
     assert crop.size == (64, 64) and info["input_size"] == [160, 120]
+
+
+def test_result_reports_checkpoint_provenance(tmp_path):
+    det = DeepTraceDetector(Detector(_tiny(), "cpu"), {"epoch": 3, "image_size": 64}, lambda rgb: FACE, PARAMS,
+                            checkpoint="best.pt", min_crop_side=32, checkpoint_sha256="abc123")
+    r = det.analyze(_image(tmp_path))
+    assert r["model"]["checkpoint"] == "best.pt" and r["model"]["checkpoint_sha256"] == "abc123"

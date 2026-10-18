@@ -15,7 +15,7 @@ Command line: `python scripts/predict.py --image photo.jpg [--save-crop crop.jpg
 1. Install requirements.txt plus torch/torchvision; `pip install -e .`
 2. Set DEEPTRACE_ROOT (default ./deeptrace_data).
 3. Put best.pt (68 MB, from the team's private Drive; not in git) at `<DEEPTRACE_ROOT>/checkpoints/main/best.pt`.
-   Checkpoint sha256: record with `sha256sum best.pt` (Not yet recorded here).
+   Checkpoint sha256: 3ce1f4654ac1b86aa1485a1400d1509f23c9f296fa8fc6ad6158f7831f3f93a9 (verify with `sha256sum best.pt`).
 4. The face detector model (OpenCV Zoo YuNet, sha256 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4)
    downloads automatically on first use.
 
@@ -27,7 +27,7 @@ Command line: `python scripts/predict.py --image photo.jpg [--save-crop crop.jpg
 | confidence | softmax probability of the predicted class (uncalibrated; NOT forensic certainty) |
 | real_probability, fake_probability | softmax probabilities of the two classes (fake_probability = MANIPULATED class) |
 | logits | raw model outputs [REAL, MANIPULATED] |
-| model_name, model | EfficientNet-B4; checkpoint path, epoch, input size, training data |
+| model_name, model | EfficientNet-B4; checkpoint file name and sha256, epoch, input size, training data |
 | input_size, face_found, face_box, face_score | original image size; largest detected face as [x, y, w, h] in original pixels |
 | crop_box, native_crop_side | square crop [left, top, right, bottom] in original pixels and its side length |
 | warnings | list of {code, message}: no_face_detected, small_face (native crop under 96 px) |

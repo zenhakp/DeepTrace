@@ -5,6 +5,7 @@ EfficientNet-B4 -> JSON-serialisable result. Detector confidence is a softmax pr
 """
 from __future__ import annotations
 
+import hashlib
 import io
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -34,11 +35,21 @@ LIMITATIONS: List[str] = [
 ]
 
 
+def _sha256(path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 class DeepTraceDetector:
     def __init__(self, detector: Detector, meta: Dict[str, Any], face_detector: Callable, params: Dict[str, Any],
-                 checkpoint: str = "", min_crop_side: int = 96, reencode_jpeg: bool = True):
+                 checkpoint: str = "", min_crop_side: int = 96, reencode_jpeg: bool = True,
+                 checkpoint_sha256: Optional[str] = None):
         self.detector, self.meta, self.face_detector, self.params = detector, meta, face_detector, params
         self.checkpoint, self.min_crop_side, self.reencode_jpeg = checkpoint, min_crop_side, reencode_jpeg
+        self.checkpoint_sha256 = checkpoint_sha256
         self.image_size = int(meta["image_size"])
 
     @classmethod
@@ -53,7 +64,7 @@ class DeepTraceDetector:
         face_model = paths.checkpoints / params["face_model_file"]
         ensure_model(face_model, params["face_model_url"])
         return cls(detector, meta, YuNetDetector(face_model, params["face_score_threshold"]), params,
-                   str(ckpt), min_crop_side)
+                   Path(ckpt).name, min_crop_side, checkpoint_sha256=_sha256(ckpt))
 
     @staticmethod
     def _load(image: ImageLike) -> Image.Image:
@@ -97,7 +108,8 @@ class DeepTraceDetector:
         tensor, info, crop = self.prepare(image)
         result: Dict[str, Any] = {
             "status": "OK", "model_name": MODEL_NAME, **info,
-            "model": {"checkpoint": self.checkpoint, "checkpoint_epoch": self.meta.get("epoch"),
+            "model": {"checkpoint": self.checkpoint, "checkpoint_sha256": self.checkpoint_sha256,
+                      "checkpoint_epoch": self.meta.get("epoch"),
                       "image_size": self.image_size, "trained_on": "DeepFakeFace (OpenRL/DeepFakeFace)"},
             "warnings": [], "limitations": list(LIMITATIONS)}
         if tensor is None:
