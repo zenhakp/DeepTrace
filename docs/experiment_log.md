@@ -40,3 +40,24 @@ EOFcat >> docs/experiment_log.md << 'EOF'
 - Smallest faces are the weak spot: fake recall 92.5% for native crop side under 122 px vs 97.5-98.5% above;
   real-image FPR 2.3% for the smallest bin vs 0.7-1.8% above.
 - Crops are re-encoded at q95 after a crop and non-integer resize, which should break JPEG block alignment (reasoning, not measured).
+
+## Cross-dataset: OpenFake test shards (measured)
+- Source: ComplexDataLab/OpenFake revision 3247b942, core/test shards 0 and 6 of 13, deterministic 30% sample
+  (4,199 images: 2,126 real / 2,073 fake), same face-crop pipeline (YuNet, margin 1.3, 380 px, q95), min native crop side 96.
+- Face filter: 4.2% of real images kept (90) vs 58.4% of fake images (1,210). The real class is a small, atypical subset.
+- Model: "main" best.pt (epoch 3), threshold 0.5, no retraining. n=1,300 (90 real / 1,210 manipulated).
+- ROC-AUC 0.418; balanced accuracy 0.495; recall 0.235 (284/1,210); specificity 0.756 (68/90; 95% interval about 0.66-0.83);
+  false-positive rate on real 24.4% (in-domain 1.45%). Accuracy 0.271 is below the trivial "always MANIPULATED" rate (0.931).
+- Recall by generator (n >= 75): flux-2-klein-9b 3.6% (306), gpt-image-1.5 17.0% (135), midjourney-7 16.0% (75),
+  z-image-turbo 27.3% (388), illustrious 32.4% (111). Generators with n < 60 not interpreted.
+- Conclusion: the detector does not generalize to these held-out modern generators (in-domain AUC 0.997 vs cross-dataset 0.42).
+
+## Positive control for the external-data path (measured)
+- 400 DFF test crops (200 real / 200 fake, random, seed 0) went through scripts/preprocess_external.py as if they were a
+  foreign dataset, then were evaluated with "main" best.pt.
+- Kept 391 (198 real / 193 fake). ROC-AUC 0.9960, accuracy 0.9719, balanced accuracy 0.9718, recall 0.9689, FPR 0.0253 (5/198).
+- Conclusion: the external path (re-crop, re-encode at q95, labels, evaluation) preserves in-domain performance
+  (in-domain test AUC 0.9974), so the OpenFake result reflects domain shift, not a pipeline fault.
+- Limit: these crops were already face-centred at 380 px, so it does not exercise cropping from large images or other face
+  scales (OpenFake native crop sides, median 225-275 px, lie within the range seen in training).
+- Not yet measured: 140k Real and Fake Faces, any run trained on more generators, calibration.
