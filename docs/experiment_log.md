@@ -17,3 +17,26 @@
   sharpness 0.749).
 - In-domain results only; they say nothing about generalization.
 - Not yet measured: within-class shortcut analysis, cross-dataset results, pair-matched ablation, calibration.
+
+## Shortcut analysis on the test predictions (measured)
+- Source JPEG luminance-table mean (q_lum_mean): every manipulated test image has 29.031; at least 60% of real
+  test images have 23.078 (about JPEG quality 80, versus about 75 for the fakes; my inference from standard tables).
+- The q-matched test subset (n=154) is exactly the 77 real test images whose table equals the fakes' plus 77 fakes.
+  On it accuracy was 0.987 (152/154), ROC-AUC 0.9992. Small sample (wide interval), but the cue is identical in both classes.
+- Within-class analysis (5 equal-count bins): real-image false-positive rate does not rise toward the fakes' table
+  value (2.0%, 1.8%, 0.4%, 1.3%, 2.0%; noise of about +-1 point). No evidence of reliance on this cue; not proof of absence.
+- Smallest faces are the weak spot: fake recall 92.5% for native crop side under 122 px vs 97.5-98.5% above;
+  real-image FPR 2.3% for the smallest bin vs 0.7-1.8% above.
+- Crops are re-encoded at q95 after a crop and non-integer resize, which should break JPEG block alignment (reasoning, not measured).
+EOFcat >> docs/experiment_log.md << 'EOF'
+
+## Shortcut analysis on the test predictions (measured)
+- Source JPEG luminance-table mean (q_lum_mean): every manipulated test image has 29.031; at least 60% of real
+  test images have 23.078 (about JPEG quality 80, versus about 75 for the fakes; my inference from standard tables).
+- The q-matched test subset (n=154) is exactly the 77 real test images whose table equals the fakes' plus 77 fakes.
+  On it accuracy was 0.987 (152/154), ROC-AUC 0.9992. Small sample (wide interval), but the cue is identical in both classes.
+- Within-class analysis (5 equal-count bins): real-image false-positive rate does not rise toward the fakes' table
+  value (2.0%, 1.8%, 0.4%, 1.3%, 2.0%; noise of about +-1 point). No evidence of reliance on this cue; not proof of absence.
+- Smallest faces are the weak spot: fake recall 92.5% for native crop side under 122 px vs 97.5-98.5% above;
+  real-image FPR 2.3% for the smallest bin vs 0.7-1.8% above.
+- Crops are re-encoded at q95 after a crop and non-integer resize, which should break JPEG block alignment (reasoning, not measured).
