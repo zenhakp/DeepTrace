@@ -61,3 +61,12 @@ EOFcat >> docs/experiment_log.md << 'EOF'
 - Limit: these crops were already face-centred at 380 px, so it does not exercise cropping from large images or other face
   scales (OpenFake native crop sides, median 225-275 px, lie within the range seen in training).
 - Not yet measured: 140k Real and Fake Faces, any run trained on more generators, calibration.
+
+## Feasibility probe: OpenFake TRAIN shard (measured, 2026-10-20)
+- Shard core/train-00016-of-00032-00000 (5.73 GB), 50% deterministic sample, same face pipeline: 2,040 images.
+- Real faces kept 484/1,031 (46.9%), fake faces kept 629/1,009 (62.3%). The test shards had 4.2% real / 58.4% fake.
+- About 968 real + 1,258 fake faces per full shard (estimate from the 50% sample). 608 train shards, 3.3 TB in total.
+- 69 generators in this one shard. Test generator families overlap train as different versions (flux-2, gpt-image,
+  midjourney, seedream, ideogram, wan), so OpenFake-test gains after training on OpenFake-train must be reported by family.
+- Decision: experiment 2 = same recipe from ImageNet on DFF + OpenFake-train faces (6 train + 1 val shard); evaluate on
+  DFF test, OpenFake test (by family), 140k, and the positive control; report both runs.

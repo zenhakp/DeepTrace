@@ -66,10 +66,10 @@ def _selected(key: str, rate: float, seed: int) -> bool:
 
 
 def process_one(raw: bytes, item: Dict[str, Any], image_id: str, detector: Callable, params: Dict[str, Any],
-                out_dir, min_crop_side: int) -> Dict[str, Any]:
+                out_dir, min_crop_side: int, split: str = "test") -> Dict[str, Any]:
     row: Dict[str, Any] = {k: None for k in FACE_FIELDS}
     row.update({"image_id": image_id, "group_id": image_id, "method": item["method"], "label": item["label"],
-                "split": "test", "zip": "", "member": item["origin"], "decode_ok": 0, "face_found": 0,
+                "split": split, "zip": "", "member": item["origin"], "decode_ok": 0, "face_found": 0,
                 "kept": 0, "gray_matched": 0, "src_bytes": len(raw)})
     try:
         img0 = Image.open(io.BytesIO(raw))
@@ -104,7 +104,7 @@ def process_one(raw: bytes, item: Dict[str, Any], image_id: str, detector: Calla
 
 def run_external(items: Iterable[Dict[str, Any]], detector: Callable, params: Dict[str, Any], out_dir, manifest_csv,
                  sample_rate: float = 1.0, seed: int = 42, limit: Optional[int] = None,
-                 min_crop_side: int = 96, progress_every: int = 500) -> int:
+                 min_crop_side: int = 96, progress_every: int = 500, split: str = "test") -> int:
     """Resumable. Returns the number of images processed in this call."""
     if not 0 < sample_rate <= 1:
         raise ValueError(f"Invalid configuration: sample_rate must be in (0, 1], got {sample_rate}")
@@ -130,7 +130,7 @@ def run_external(items: Iterable[Dict[str, Any]], detector: Callable, params: Di
                 raw = item["read"]()
             except Exception:
                 raw = b""                       # recorded as a decode failure, never silently skipped
-            row = process_one(raw, item, image_id, detector, params, out_dir, min_crop_side)
+            row = process_one(raw, item, image_id, detector, params, out_dir, min_crop_side, split)
             w.writerow({k: "" if row.get(k) is None else row[k] for k in FACE_FIELDS})
             f.flush()
             processed += 1
@@ -158,3 +158,15 @@ def summarize_external(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         "median_native_crop_side": {k: statistics.median(v) for k, v in side.items() if v},
         "shortcut_audit": shortcut_audit(rows),
     }
+
+
+def choose_shards(names, n_train: int, n_val: int):
+    """Evenly spread, deterministic shard choice. The last n_val chosen shards form the validation split."""
+    names = sorted(names)
+    n = n_train + n_val
+    if n_train < 1 or n_val < 1:
+        raise ValueError("Invalid configuration: need at least one train and one validation shard")
+    if n > len(names):
+        raise ValueError(f"Need {n} shards but only {len(names)} are available")
+    idx = [int((k + 0.5) * len(names) / n) for k in range(n)]
+    return [(names[i], "train" if k < n_train else "val") for k, i in enumerate(idx)]

@@ -81,3 +81,20 @@ def test_binned_rates_detects_dependence_on_a_feature():
     assert out[0]["share_predicted_manipulated"] == 0.0 and out[-1]["share_predicted_manipulated"] == 1.0
     with pytest.raises(ValueError, match="not found in the manifest"):
         binned_rates({}, preds, "q", 0)
+
+
+def test_split_label_is_written(tmp_path):
+    ex.run_external(_items(tmp_path), lambda rgb: FACE, PARAMS, tmp_path / "out", tmp_path / "m.csv",
+                    min_crop_side=32, progress_every=0, split="val")
+    assert {r["split"] for r in read_faces_csv(tmp_path / "m.csv")} == {"val"}
+
+
+def test_choose_shards_is_spread_deterministic_and_last_is_val():
+    names = [f"s{i:03d}" for i in range(100)]
+    plan = ex.choose_shards(names, 3, 1)
+    assert plan == ex.choose_shards(list(reversed(names)), 3, 1)
+    assert [s for _, s in plan] == ["train", "train", "train", "val"]
+    idx = [names.index(n) for n, _ in plan]
+    assert idx == sorted(set(idx)) and idx[0] < 20 and idx[-1] > 80
+    with pytest.raises(ValueError, match="only"):
+        ex.choose_shards(names[:2], 3, 1)
