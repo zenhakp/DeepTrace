@@ -109,7 +109,8 @@ def run_training(model: torch.nn.Module, train_rows: Sequence[Dict[str, Any]], v
     train_ds = FaceCropDataset(train_rows, crops_dir, ld["image_size"], train=True,
                                degrade_cfg=ld["degrade"], hflip=ld["hflip"])
     val_ds = FaceCropDataset(val_rows, crops_dir, ld["image_size"], train=False)
-    plan_len = len(epoch_plan(train_rows, 0, seed, ts["fakes_per_real"]))
+    plan_fn = _planner(train_rows)
+    plan_len = len(plan_fn(train_rows, 0, seed, ts["fakes_per_real"]))
     steps_per_epoch = math.ceil(plan_len / bs)
     total_steps = steps_per_epoch * ts["epochs"]
     fingerprint = {"batch_size": bs, "image_size": ld["image_size"], "epochs": ts["epochs"],
@@ -151,7 +152,7 @@ def run_training(model: torch.nn.Module, train_rows: Sequence[Dict[str, Any]], v
         f"steps/epoch={steps_per_epoch} total_steps={total_steps}")
 
     for epoch in range(state["epoch"], ts["epochs"]):
-        idx = epoch_plan(train_rows, epoch, seed, ts["fakes_per_real"])[state["step_in_epoch"] * bs:]
+        idx = plan_fn(train_rows, epoch, seed, ts["fakes_per_real"])[state["step_in_epoch"] * bs:]
         loader = make_loader(Subset(train_ds, idx), bs, shuffle=False, num_workers=nw, seed=seed + epoch)
         model.train()
         window: List[float] = []
@@ -193,13 +194,27 @@ def run_training(model: torch.nn.Module, train_rows: Sequence[Dict[str, Any]], v
         state["epoch"], state["step_in_epoch"] = epoch + 1, 0
         records = predict_rows(model, make_loader(val_ds, bs, shuffle=False, num_workers=nw, seed=0), dev, use_amp)
         vm = classification_metrics([r["label"] for r in records], [r["fake_prob"] for r in records])
+        sel = vm["roc_auc"]
+        sources = sorted({r["source"] for r in val_rows if "source" in r})
+        if len(sources) > 1:                       # several sources: select by the mean per-source AUC
+            src_of = {r["image_id"]: r["source"] for r in val_rows}
+            per = {}
+            for s in sources:
+                sub = [x for x in records if src_of[x["image_id"]] == s]
+                per[s] = classification_metrics([x["label"] for x in sub], [x["fake_prob"] for x in sub])
+            vm["per_source"] = per
+            aucs = [m["roc_auc"] for m in per.values() if m["roc_auc"] is not None]
+            sel = sum(aucs) / len(aucs) if aucs else None
+            vm["selection_score_mean_source_auc"] = sel
+            for s, m in per.items():
+                log(f"  validation [{s}] n={m['n']} ROC-AUC {m['roc_auc']} balanced acc {m['balanced_accuracy']}")
         entry = {"type": "val", "epoch": epoch + 1, "global_step": state["global_step"], **vm}
         jlog(entry)
         history.append(entry)
         log(f"VALIDATION epoch {epoch + 1}: ROC-AUC {vm['roc_auc']} balanced acc {vm['balanced_accuracy']} "
             f"acc {vm['accuracy']:.4f} (n={vm['n']})")
-        if vm["roc_auc"] is not None and vm["roc_auc"] > state["best_val_auc"]:
-            state["best_val_auc"] = vm["roc_auc"]
+        if sel is not None and sel > state["best_val_auc"]:
+            state["best_val_auc"] = sel
             save_checkpoint(ckpt_dir / "best.pt", {
                 "model": model.state_dict(),
                 "meta": {"model_name": MODEL_NAME, "labels": list(LABELS), "epoch": epoch + 1,
@@ -213,3 +228,29 @@ def run_training(model: torch.nn.Module, train_rows: Sequence[Dict[str, Any]], v
               "steps_per_epoch": steps_per_epoch, "history": history}
     (run_dir / "training_summary.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     return result
+
+
+def epoch_plan_by_source(rows: Sequence[Dict[str, Any]], epoch: int, seed: int, fakes_per_real: int = 1) -> List[int]:
+    """Class balance WITHIN each source: every source contributes all its real rows plus fakes_per_real x as many of
+    its fake rows (uniformly at random, re-drawn each epoch). No source can predict the label. Deterministic in
+    (seed, epoch), so training can resume."""
+    by_source: Dict[str, Dict[int, List[int]]] = defaultdict(lambda: {0: [], 1: []})
+    for i, r in enumerate(rows):
+        by_source[r["source"]][r["label"]].append(i)
+
+    def key(salt: str, i: int) -> str:
+        return hashlib.sha256(f"{salt}:{seed}:{epoch}:{rows[i]['image_id']}".encode("utf-8")).hexdigest()
+
+    chosen: List[int] = []
+    for src in sorted(by_source):
+        real, fake = by_source[src][0], by_source[src][1]
+        if not real or not fake:
+            raise ValueError(f"Source '{src}' needs both real and manipulated rows")
+        chosen += real
+        chosen += sorted(fake, key=lambda i: key("pick", i))[: len(real) * fakes_per_real]
+    return sorted(chosen, key=lambda i: key("order", i))
+
+
+def _planner(rows: Sequence[Dict[str, Any]]):
+    multi = all("source" in r for r in rows) and len({r["source"] for r in rows}) > 1
+    return epoch_plan_by_source if multi else epoch_plan

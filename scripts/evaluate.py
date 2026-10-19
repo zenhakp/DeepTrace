@@ -15,7 +15,8 @@ from deeptrace.common.config import load_config
 from deeptrace.common.device import resolve_device
 from deeptrace.common.paths import get_paths
 from deeptrace.data.dataset import FaceCropDataset, class_counts, load_split_rows, make_loader
-from deeptrace.data.preprocess import faces_locations, params_from_cfg
+from deeptrace.data.preprocess import faces_locations, params_from_cfg, read_faces_csv
+from deeptrace.evaluation.families import family_report, seen_families
 from deeptrace.evaluation.metrics import classification_metrics, per_method_report
 from deeptrace.evaluation.predict import predict_rows
 from deeptrace.models.detector import load_detector
@@ -30,6 +31,7 @@ def main() -> None:
     p.add_argument("--split", default="val", choices=["val", "test"])
     p.add_argument("--checkpoint", default=None, help="default: <checkpoints>/<run-name>/best.pt")
     p.add_argument("--matched-ids", default=None, help="JSON from make_matched_test.py")
+    p.add_argument("--families-from", default=None, help="dataset whose TRAIN generators define the seen families")
     p.add_argument("--limit", type=int, default=None, help="debug: evaluate only N images")
     p.add_argument("--threshold", type=float, default=0.5)
     p.add_argument("--batch", type=int, default=32)
@@ -72,6 +74,12 @@ def main() -> None:
         "note": "Threshold 0.5 is a design choice; ROC-AUC does not depend on it. per_method: for 'real' the share "
                 "predicted MANIPULATED is the false-positive rate; for fake methods it is recall.",
     }
+    if a.families_from:
+        _, fam_csv = faces_locations(paths, a.families_from, pr)
+        train_methods = {r["method"] for r in read_faces_csv(fam_csv)
+                         if r["kept"] == 1 and r["split"] == "train" and r["label"] == 1}
+        report["family_analysis"] = family_report(records, seen_families(train_methods), a.threshold)
+        report["family_analysis"]["train_generators_used"] = sorted(train_methods)
     suffix = f"{a.dataset}_{a.split}" + ("_matched" if a.matched_ids else "") + (f"_limit{a.limit}" if a.limit else "")
     out_dir = paths.experiments / a.run_name
     out_dir.mkdir(parents=True, exist_ok=True)
