@@ -70,3 +70,34 @@ def test_result_reports_checkpoint_provenance(tmp_path):
                             checkpoint="best.pt", min_crop_side=32, checkpoint_sha256="abc123")
     r = det.analyze(_image(tmp_path))
     assert r["model"]["checkpoint"] == "best.pt" and r["model"]["checkpoint_sha256"] == "abc123"
+
+
+def _plain_det(detector):
+    return DeepTraceDetector(Detector(_tiny(), "cpu"), {"epoch": 3, "image_size": 64}, detector, PARAMS,
+                             min_crop_side=32, detect_max_side=1280)
+
+
+def test_large_images_are_downscaled_for_detection_and_boxes_mapped_back(tmp_path):
+    seen = []
+
+    def detector(rgb):
+        seen.append(rgb.shape[:2])
+        return (100.0, 80.0, 200.0, 200.0, 0.9)
+
+    path = tmp_path / "big.jpg"
+    Image.new("RGB", (2560, 1920), (120, 130, 140)).save(path, "JPEG")
+    r = _plain_det(detector).analyze(path)
+    assert seen == [(960, 1280)]
+    assert r["face_box"] == [200.0, 160.0, 400.0, 400.0]
+    assert r["input_size"] == [2560, 1920] and r["crop_box"][2] <= 2560 and r["crop_box"][3] <= 1920
+
+
+def test_small_images_are_not_resized_for_detection(tmp_path):
+    seen = []
+
+    def detector(rgb):
+        seen.append(rgb.shape[:2])
+        return FACE
+
+    _plain_det(detector).analyze(_image(tmp_path))
+    assert seen == [(120, 160)]

@@ -37,6 +37,8 @@ Command line: `python scripts/predict.py --image photo.jpg [--save-crop crop.jpg
 EXIF rotation -> RGB -> largest face (YuNet, score >= 0.6) -> square crop 1.3x the face box -> 380x380 bicubic
 -> JPEG re-encode q95 -> ImageNet normalisation. Difference: training matched colour mode within each real/fake group;
 a single image cannot be matched.
+For large inputs face detection runs on a copy whose longer side is at most 1280 px (box mapped back; the crop
+is taken from the full-resolution image), so very small faces in very large photos may be missed.
 
 ## For Part 2 (localization, robustness, video)
 - `det.prepare(image)` returns (tensor, info, crop): the exact normalised input the model sees, and the crop.

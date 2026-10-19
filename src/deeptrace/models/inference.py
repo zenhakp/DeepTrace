@@ -46,15 +46,17 @@ def _sha256(path) -> str:
 class DeepTraceDetector:
     def __init__(self, detector: Detector, meta: Dict[str, Any], face_detector: Callable, params: Dict[str, Any],
                  checkpoint: str = "", min_crop_side: int = 96, reencode_jpeg: bool = True,
-                 checkpoint_sha256: Optional[str] = None):
+                 checkpoint_sha256: Optional[str] = None, detect_max_side: int = 1280):
         self.detector, self.meta, self.face_detector, self.params = detector, meta, face_detector, params
         self.checkpoint, self.min_crop_side, self.reencode_jpeg = checkpoint, min_crop_side, reencode_jpeg
         self.checkpoint_sha256 = checkpoint_sha256
+        self.detect_max_side = detect_max_side
         self.image_size = int(meta["image_size"])
 
     @classmethod
     def from_run(cls, run_name: str = "main", config: Optional[str] = None, root: Optional[str] = None,
-                 device: Optional[str] = None, checkpoint: Optional[str] = None, min_crop_side: int = 96):
+                 device: Optional[str] = None, checkpoint: Optional[str] = None, min_crop_side: int = 96,
+                 detect_max_side: int = 1280):
         cfg = load_config(config or DEFAULT_CONFIG)
         params = params_from_cfg(cfg)
         paths = get_paths(root, create=False)
@@ -64,7 +66,8 @@ class DeepTraceDetector:
         face_model = paths.checkpoints / params["face_model_file"]
         ensure_model(face_model, params["face_model_url"])
         return cls(detector, meta, YuNetDetector(face_model, params["face_score_threshold"]), params,
-                   Path(ckpt).name, min_crop_side, checkpoint_sha256=_sha256(ckpt))
+                   Path(ckpt).name, min_crop_side, checkpoint_sha256=_sha256(ckpt),
+                   detect_max_side=detect_max_side)
 
     @staticmethod
     def _load(image: ImageLike) -> Image.Image:
@@ -81,11 +84,24 @@ class DeepTraceDetector:
                 raise RuntimeError(f"Unable to read image: {p}") from exc
         return ImageOps.exif_transpose(img).convert("RGB")
 
+    def _detect(self, img: Image.Image):
+        """Face detection on a copy limited to detect_max_side (cost grows with pixels); box mapped back."""
+        W, H = img.size
+        scale = min(1.0, self.detect_max_side / max(W, H))
+        if scale >= 1.0:
+            return self.face_detector(np.asarray(img))
+        small = img.resize((max(1, round(W * scale)), max(1, round(H * scale))), Image.Resampling.BILINEAR)
+        face = self.face_detector(np.asarray(small))
+        if face is None:
+            return None
+        x, y, w, h, score = face
+        return (x / scale, y / scale, w / scale, h / scale, score)
+
     def prepare(self, image: ImageLike) -> Tuple[Optional[torch.Tensor], Dict[str, Any], Optional[Image.Image]]:
         """(model input tensor (1,3,S,S) or None, info dict, the crop as the model sees it or None)."""
         img = self._load(image)
         W, H = img.size
-        face = self.face_detector(np.asarray(img))
+        face = self._detect(img)
         info: Dict[str, Any] = {"input_size": [W, H], "face_found": face is not None}
         if face is None:
             return None, info, None
