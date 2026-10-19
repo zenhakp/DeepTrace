@@ -59,3 +59,9 @@ is taken from the full-resolution image), so very small faces in very large phot
 - OpenFake held-out generators (n=1,300; 90 real): ROC-AUC 0.418, recall 23.5%, false-positive rate 24.4%.
   => NOT reliable outside the training distribution.
 - Not yet measured: calibration, 140k Real and Fake Faces, video, robustness (Part 2).
+
+## Speed (measured on the dev laptop CPU, after warm-up, 3 repeats; noisy)
+- Start-up: a whole command took 10-17 s including importing the libraries; loading the model and hashing the checkpoint took 1.3 s.
+  Create the detector once per process and reuse it.
+- Per image (detect + EfficientNet-B4 forward): about 0.3-0.5 s for a 380 px face crop (two identical-path runs gave 0.28 s and 0.52 s).
+- 6000x4004 photo, face detection only: 0.63 s with the default downscaled detection (detect_max_side=1280), 1.65 s on the full-resolution image.
