@@ -78,3 +78,16 @@ EOFcat >> docs/experiment_log.md << 'EOF'
 - Face-cropping took about 5,000-5,300 s per full shard on a Colab CPU (about 1.3 s per image), about 7.8 h in total.
 - Planned mixed training: class-balanced within each source (DFF 22,759+22,759, OpenFake 5,658+5,658 per epoch),
   3,553 steps per epoch, 10,659 steps in total; checkpoint chosen by the mean of per-source validation ROC-AUC.
+
+## Run "mixed": DFF + OpenFake-train faces (measured, 2026-10-21)
+- Same recipe as "main" from ImageNet init; class-balanced within each source; 10,659 steps (3 epochs), about 2.96 it/s on a Colab T4.
+- Validation per source, epoch 3: DFF ROC-AUC 0.9964 (balanced acc 0.975), OpenFake-val 0.9725 (0.912); checkpoint chosen by mean per-source AUC 0.9845.
+- DFF test (n=11,344): ROC-AUC 0.9966 (main 0.9974), balanced accuracy 0.9716 (0.9774), FPR 2.50% (1.45%); recall inpainting 98.4%, insight 93.6%, text2img 98.5%.
+- OpenFake test sample (n=1,300; 90 real): ROC-AUC 0.820 (main 0.418), balanced accuracy 0.757 (0.495), recall 68.0% (23.5%), FPR 16.7% (24.4%).
+  Recall by generator, main -> mixed: flux-2-klein-9b 3.6 -> 33.0% (n=306), z-image-turbo 27.3 -> 74.7% (388), gpt-image-1-5 17.0 -> 71.1% (135),
+  illustrious 32.4 -> 97.3% (111), midjourney-7 16.0 -> 88.0% (75), veo-3 61.1 -> 90.7% (54).
+- Seen-family (first-word heuristic) recall 53.9% (n=584) vs unseen 81.2% (n=626): driven by flux-2-klein-9b being hard although the flux family was in training. Crude heuristic.
+- Format diagnostic: share caught for fakes, JPEG-origin vs non-JPEG-origin: main 24.1% vs 21.4%; mixed 62.3% vs 85.7%. All 90 test reals are JPEG-origin.
+  In the OpenFake train subset 98.7% of reals but only 32.0% of fakes are JPEG-origin, so mixed may partly use a compression-history cue (confounded with generator).
+- Caveats: only 90 real test images (AUC about +-0.04, specificity interval about 74-90%); OpenFake test is not independent of the OpenFake training source.
+- Not yet measured: format-equalized AUC, generator-by-format recall, 140k Real and Fake Faces, calibration.
