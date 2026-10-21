@@ -70,3 +70,11 @@ EOFcat >> docs/experiment_log.md << 'EOF'
   midjourney, seedream, ideogram, wan), so OpenFake-test gains after training on OpenFake-train must be reported by family.
 - Decision: experiment 2 = same recipe from ImageNet on DFF + OpenFake-train faces (6 train + 1 val shard); evaluate on
   DFF test, OpenFake test (by family), 140k, and the positive control; report both runs.
+
+## OpenFake train subset for experiment 2 (measured, built 2026-10-20)
+- 7 evenly spaced shards of the train split (6 train + 1 val, by whole shard), same face pipeline, min native crop side 96.
+- 27,925 images processed, 15,232 kept (54.5%). Train: 5,658 real + 7,420 manipulated. Val: 931 real + 1,223 manipulated.
+- 74 generators; median native crop side manipulated 223 px, real 283 px.
+- Face-cropping took about 5,000-5,300 s per full shard on a Colab CPU (about 1.3 s per image), about 7.8 h in total.
+- Planned mixed training: class-balanced within each source (DFF 22,759+22,759, OpenFake 5,658+5,658 per epoch),
+  3,553 steps per epoch, 10,659 steps in total; checkpoint chosen by the mean of per-source validation ROC-AUC.
