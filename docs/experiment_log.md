@@ -91,3 +91,20 @@ EOFcat >> docs/experiment_log.md << 'EOF'
   In the OpenFake train subset 98.7% of reals but only 32.0% of fakes are JPEG-origin, so mixed may partly use a compression-history cue (confounded with generator).
 - Caveats: only 90 real test images (AUC about +-0.04, specificity interval about 74-90%); OpenFake test is not independent of the OpenFake training source.
 - Not yet measured: format-equalized AUC, generator-by-format recall, 140k Real and Fake Faces, calibration.
+
+## Cross-dataset: 140k Real and Fake Faces test sample (measured, 2026-10-21)
+- Kaggle xhlulu/140k-real-and-fake-faces (license field: "other"; real = FFHQ, fake = StyleGAN), test folder, 25% deterministic
+  sample: 5,045 images (2,530 real / 2,515 fake), all faces found and kept; same pipeline.
+- Cue audit: all six features between 0.50 and 0.56 strength; both classes have the same JPEG table.
+- main: ROC-AUC 0.433, balanced accuracy 0.487, recall 3.3% (83/2,515), false-positive rate 5.9%.
+- mixed: ROC-AUC 0.487, balanced accuracy 0.494, recall 15.9% (401/2,515), false-positive rate 17.1% (433/2,530).
+- Reading: neither run detects StyleGAN faces (main below chance, mixed indistinguishable from chance). Training on more
+  diffusion/transformer generators did not transfer to a GAN family (hypothesis, untested: learned traces are generator-type specific).
+
+## Format diagnostics on the OpenFake test sample (measured, 2026-10-21)
+- ROC-AUC on the JPEG-origin-only subset (both classes JPEG-origin; n=1,006, 90 real): main 0.422 (all 0.418), mixed 0.785 (all 0.820).
+- Generator by format (mixed recall, JPEG-origin vs non-JPEG-origin): z-image-turbo 0.74 (n=320) vs 0.76 (68);
+  gpt-image-1-5 0.55 (56) vs 0.82 (79); illustrious 0.97 (88) vs 1.00 (23).
+- Reading: the format cue accounts for little of the OpenFake gain; one generator (gpt-image-1-5) shows a format-dependent gap.
+- Checkpoint fingerprints: main 3ce1f465...f93a9, mixed d00ae780e23a7f713d3f7af8e57e05a4a5e08382c005772499e9a7fcedabd107.
+- Decision: generalization experiments stop here; mixed becomes detector v2.

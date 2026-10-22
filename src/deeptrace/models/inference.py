@@ -2,6 +2,7 @@
 
 image (path or PIL) -> face detection -> the same crop / resize / JPEG re-encode used for training ->
 EfficientNet-B4 -> JSON-serialisable result. Detector confidence is a softmax probability, not forensic certainty.
+Limitations text is keyed by the SHA-256 of the checkpoint, so it always describes the weights actually loaded.
 """
 from __future__ import annotations
 
@@ -24,15 +25,39 @@ from deeptrace.models.detector import MODEL_NAME, Detector, load_detector
 
 ImageLike = Union[str, Path, Image.Image]
 DEFAULT_CONFIG = Path(__file__).resolve().parents[3] / "configs" / "part1_default.yaml"
+DEFAULT_RUN = "mixed"
 
-LIMITATIONS: List[str] = [
-    "Trained only on DeepFakeFace (Stable Diffusion text-to-image and inpainting fakes, InsightFace face swaps).",
-    "On a sample of held-out modern generators (OpenFake test) the detector did not separate real from manipulated "
-    "images (ROC-AUC 0.42, see docs/experiment_log.md); results outside the training distribution are unreliable.",
+LIMITATIONS_COMMON: List[str] = [
     "Confidence is the softmax probability of the predicted class (uncalibrated). It is not forensic certainty and "
     "not the probability that the image is actually manipulated.",
     "Only the largest detected face is analysed; images without a detectable face receive no prediction.",
 ]
+GENERIC_LIMITATIONS: List[str] = [
+    "No evaluation is recorded for this checkpoint; treat results outside its training data as unreliable.",
+]
+MODEL_INFO: Dict[str, Dict[str, Any]] = {
+    "3ce1f4654ac1b86aa1485a1400d1509f23c9f296fa8fc6ad6158f7831f3f93a9": {
+        "version": "v1",
+        "trained_on": "DeepFakeFace (OpenRL/DeepFakeFace)",
+        "limitations": [
+            "Trained only on DeepFakeFace (Stable Diffusion text-to-image and inpainting fakes, InsightFace face swaps).",
+            "On held-out modern generators (OpenFake test sample) and on StyleGAN faces the detector did not separate "
+            "real from manipulated images (ROC-AUC 0.42 and 0.43); results outside DeepFakeFace are unreliable.",
+        ],
+    },
+    "d00ae780e23a7f713d3f7af8e57e05a4a5e08382c005772499e9a7fcedabd107": {
+        "version": "v2",
+        "trained_on": "DeepFakeFace + a face-cropped subset of the OpenFake train split (74 generators)",
+        "limitations": [
+            "Trained on DeepFakeFace (Stable Diffusion fakes, InsightFace face swaps) and a face-cropped subset of "
+            "OpenFake (74 diffusion and transformer image and video generators).",
+            "On held-out OpenFake generators (sample of 1,300 images, only 90 real) ROC-AUC was 0.82, recall 68% and "
+            "false-positive rate 17%; some generators (for example flux-2-klein-9b, 33% recall) are mostly missed.",
+            "On StyleGAN-generated faces versus real FFHQ photos (5,045 images) ROC-AUC was 0.49, i.e. chance: "
+            "GAN-generated faces are not detected.",
+        ],
+    },
+}
 
 
 def _sha256(path) -> str:
@@ -46,15 +71,19 @@ def _sha256(path) -> str:
 class DeepTraceDetector:
     def __init__(self, detector: Detector, meta: Dict[str, Any], face_detector: Callable, params: Dict[str, Any],
                  checkpoint: str = "", min_crop_side: int = 96, reencode_jpeg: bool = True,
-                 checkpoint_sha256: Optional[str] = None, detect_max_side: int = 1280):
+                 checkpoint_sha256: Optional[str] = None, detect_max_side: int = 1280,
+                 trained_on: str = "DeepFakeFace (OpenRL/DeepFakeFace)",
+                 limitations: Optional[List[str]] = None, model_version: str = "unregistered"):
         self.detector, self.meta, self.face_detector, self.params = detector, meta, face_detector, params
         self.checkpoint, self.min_crop_side, self.reencode_jpeg = checkpoint, min_crop_side, reencode_jpeg
         self.checkpoint_sha256 = checkpoint_sha256
         self.detect_max_side = detect_max_side
+        self.trained_on, self.model_version = trained_on, model_version
+        self.limitations = list(limitations) if limitations is not None else GENERIC_LIMITATIONS + LIMITATIONS_COMMON
         self.image_size = int(meta["image_size"])
 
     @classmethod
-    def from_run(cls, run_name: str = "main", config: Optional[str] = None, root: Optional[str] = None,
+    def from_run(cls, run_name: str = DEFAULT_RUN, config: Optional[str] = None, root: Optional[str] = None,
                  device: Optional[str] = None, checkpoint: Optional[str] = None, min_crop_side: int = 96,
                  detect_max_side: int = 1280):
         cfg = load_config(config or DEFAULT_CONFIG)
@@ -63,11 +92,15 @@ class DeepTraceDetector:
         dev = resolve_device(device or cfg["run"]["device"])
         ckpt = Path(checkpoint) if checkpoint else paths.checkpoints / run_name / "best.pt"
         detector, meta = load_detector(ckpt, dev)
+        sha = _sha256(ckpt)
+        info = MODEL_INFO.get(sha)
         face_model = paths.checkpoints / params["face_model_file"]
         ensure_model(face_model, params["face_model_url"])
         return cls(detector, meta, YuNetDetector(face_model, params["face_score_threshold"]), params,
-                   Path(ckpt).name, min_crop_side, checkpoint_sha256=_sha256(ckpt),
-                   detect_max_side=detect_max_side)
+                   Path(ckpt).name, min_crop_side, checkpoint_sha256=sha, detect_max_side=detect_max_side,
+                   trained_on=info["trained_on"] if info else "unknown (checkpoint not registered in MODEL_INFO)",
+                   limitations=(info["limitations"] if info else GENERIC_LIMITATIONS) + LIMITATIONS_COMMON,
+                   model_version=info["version"] if info else "unregistered")
 
     @staticmethod
     def _load(image: ImageLike) -> Image.Image:
@@ -124,10 +157,10 @@ class DeepTraceDetector:
         tensor, info, crop = self.prepare(image)
         result: Dict[str, Any] = {
             "status": "OK", "model_name": MODEL_NAME, **info,
-            "model": {"checkpoint": self.checkpoint, "checkpoint_sha256": self.checkpoint_sha256,
-                      "checkpoint_epoch": self.meta.get("epoch"),
-                      "image_size": self.image_size, "trained_on": "DeepFakeFace (OpenRL/DeepFakeFace)"},
-            "warnings": [], "limitations": list(LIMITATIONS)}
+            "model": {"version": self.model_version, "checkpoint": self.checkpoint,
+                      "checkpoint_sha256": self.checkpoint_sha256, "checkpoint_epoch": self.meta.get("epoch"),
+                      "image_size": self.image_size, "trained_on": self.trained_on},
+            "warnings": [], "limitations": list(self.limitations)}
         if tensor is None:
             result.update({"status": "NO_FACE", "prediction": None, "confidence": None,
                            "real_probability": None, "fake_probability": None, "logits": None})

@@ -14,7 +14,7 @@ from deeptrace.models.inference import DeepTraceDetector
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--image", required=True)
-    p.add_argument("--run-name", default="main")
+    p.add_argument("--run-name", default="mixed")
     p.add_argument("--checkpoint", default=None)
     p.add_argument("--config", default=None)
     p.add_argument("--root", default=None)

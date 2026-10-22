@@ -51,3 +51,14 @@ honestly that it does not generalize to modern held-out generators (ROC-AUC 0.42
 - What would you do next? Train with more generators, evaluate on 140k Real and Fake Faces, calibrate, hand attribution
   and stability analysis (Part 2) the stable API.
 - What is not yet measured? Calibration, 140k set, video, robustness, any run trained on more generators.
+## Update: experiment 2 (more generators) and the final picture
+- Training on DFF + OpenFake-train faces ("mixed") raised held-out OpenFake ROC-AUC from 0.42 to 0.82 (0.785 when both classes are
+  JPEG-origin) at almost no in-domain cost (DFF AUC 0.9966 vs 0.9974; false-positive rate 2.5% vs 1.45%).
+- It did not transfer to a GAN family: StyleGAN faces vs FFHQ AUC 0.43 (main), 0.49 (mixed). Hypothesis (untested): the detector
+  learns traces specific to the generator types seen in training.
+- Honest limits: only 90 real images in the OpenFake test sample; OpenFake test shares its source with the training subset;
+  flux-2-klein-9b is still mostly missed (33% recall); a crude first-word "family" heuristic showed no seen-vs-unseen advantage.
+- Why we stopped: more generator coverage turns the project into a detector benchmark race; the contribution is the
+  evidence-grounded forensic pipeline, which takes known limits as input (Evidence Stability, limitations list in every result).
+- Q: Which detector ships? v2 "mixed": same in-domain, much better on held-out diffusion generators, still unreliable on GANs and
+  with more false alarms off-domain. The API returns checkpoint-specific limitations with every result.

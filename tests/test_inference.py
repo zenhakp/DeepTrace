@@ -101,3 +101,18 @@ def test_small_images_are_not_resized_for_detection(tmp_path):
 
     _plain_det(detector).analyze(_image(tmp_path))
     assert seen == [(120, 160)]
+
+
+def test_model_info_is_keyed_by_checkpoint_sha():
+    from deeptrace.models.inference import MODEL_INFO
+    assert all(len(k) == 64 for k in MODEL_INFO)
+    assert {v["version"] for v in MODEL_INFO.values()} == {"v1", "v2"}
+    for v in MODEL_INFO.values():
+        assert v["trained_on"] and len(v["limitations"]) >= 2
+
+
+def test_result_reports_given_trained_on_version_and_limitations(tmp_path):
+    det = DeepTraceDetector(Detector(_tiny(), "cpu"), {"epoch": 3, "image_size": 64}, lambda rgb: FACE, PARAMS,
+                            min_crop_side=32, trained_on="X", limitations=["a", "b"], model_version="v9")
+    r = det.analyze(_image(tmp_path))
+    assert r["model"]["trained_on"] == "X" and r["model"]["version"] == "v9" and r["limitations"] == ["a", "b"]

@@ -1,12 +1,12 @@
 # Detector API (Part 1 -> Part 2 / Part 3)
 
-Model: EfficientNet-B4 (ImageNet initialisation), fine-tuned on DeepFakeFace face crops. Run "main", checkpoint epoch 3.
+Model: EfficientNet-B4 (ImageNet initialisation). Default is v2 ("mixed"): DeepFakeFace + OpenFake-train faces. v1 ("main") is kept for reference.
 Labels: index 0 = REAL, index 1 = MANIPULATED.
 
 ## Use
 ```python
 from deeptrace.models.inference import DeepTraceDetector
-det = DeepTraceDetector.from_run("main")      # needs <DEEPTRACE_ROOT>/checkpoints/main/best.pt
+det = DeepTraceDetector.from_run("mixed")     # needs <DEEPTRACE_ROOT>/checkpoints/mixed/best.pt
 result = det.analyze("photo.jpg")             # JSON-serialisable dict
 ```
 Command line: `python scripts/predict.py --image photo.jpg [--save-crop crop.jpg]`
@@ -14,8 +14,8 @@ Command line: `python scripts/predict.py --image photo.jpg [--save-crop crop.jpg
 ## Setup
 1. Install requirements.txt plus torch/torchvision; `pip install -e .`
 2. Set DEEPTRACE_ROOT (default ./deeptrace_data).
-3. Put best.pt (68 MB, from the team's private Drive; not in git) at `<DEEPTRACE_ROOT>/checkpoints/main/best.pt`.
-   Checkpoint sha256: 3ce1f4654ac1b86aa1485a1400d1509f23c9f296fa8fc6ad6158f7831f3f93a9 (verify with `sha256sum best.pt`).
+3. Put best.pt (68 MB, from the team's private Drive; not in git) at `<DEEPTRACE_ROOT>/checkpoints/mixed/best.pt`.
+   Checkpoint sha256 (v2): d00ae780e23a7f713d3f7af8e57e05a4a5e08382c005772499e9a7fcedabd107 (verify with `sha256sum best.pt`).
 4. The face detector model (OpenCV Zoo YuNet, sha256 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4)
    downloads automatically on first use.
 
@@ -52,7 +52,7 @@ is taken from the full-resolution image), so very small faces in very large phot
 - Always show `limitations`. Handle `status == "NO_FACE"` explicitly (no prediction exists).
 - Do not state certainty beyond the evidence.
 
-## Measured performance (details in docs/experiment_log.md)
+## Measured performance of v1 "main" (details in docs/experiment_log.md)
 - In-domain DFF test (n=11,344): ROC-AUC 0.9974, balanced accuracy 0.9774, false-positive rate 1.45%.
 - Recall by manipulation (DFF test): inpainting 98.0%, InsightFace swap 94.0%, text2img 98.8%.
 - Faces under about 122 px native: recall 92.5% (versus about 98% for larger faces).
@@ -65,3 +65,17 @@ is taken from the full-resolution image), so very small faces in very large phot
   Create the detector once per process and reuse it.
 - Per image (detect + EfficientNet-B4 forward): about 0.3-0.5 s for a 380 px face crop (two identical-path runs gave 0.28 s and 0.52 s).
 - 6000x4004 photo, face detection only: 0.63 s with the default downscaled detection (detect_max_side=1280), 1.65 s on the full-resolution image.
+
+## Versions
+| Version | Checkpoint sha256 | Trained on | Status |
+|---|---|---|---|
+| v1 "main" | 3ce1f4654ac1b86aa1485a1400d1509f23c9f296fa8fc6ad6158f7831f3f93a9 | DeepFakeFace | kept for reference |
+| v2 "mixed" | d00ae780e23a7f713d3f7af8e57e05a4a5e08382c005772499e9a7fcedabd107 | DeepFakeFace + OpenFake-train faces (74 generators) | default |
+The result field model.version is "v1", "v2" or "unregistered"; the limitations list is chosen by the checkpoint's sha256.
+
+## Measured performance of v2 "mixed" (details in docs/experiment_log.md)
+- DFF test (n=11,344): ROC-AUC 0.9966, balanced accuracy 0.9716, false-positive rate 2.50%.
+- OpenFake held-out generators (n=1,300; only 90 real): ROC-AUC 0.820, recall 68.0%, false-positive rate 16.7%; flux-2-klein-9b recall 33.0%.
+- StyleGAN faces vs FFHQ (n=5,045): ROC-AUC 0.487 (chance), recall 15.9%, false-positive rate 17.1%.
+- v1 for comparison: OpenFake ROC-AUC 0.418; StyleGAN faces 0.433.
+- Not yet measured: calibration, video, robustness (Part 2), other GAN or face-swap datasets.
