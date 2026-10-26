@@ -5,6 +5,25 @@ Settings: configs/part2_forensics.yaml at the commit that added each entry; seed
 repository and are not identified here. Nothing below is an accuracy claim: the samples are tiny and their true labels
 are not known (except where stated).
 
+## Attribution method choice on 11 still face photos (measured, 2026-10-26)
+- Target layer bn2 (conv_head + BatchNorm + SiLU, 1792 x 12 x 12), then global average pooling + linear head. The
+  gradient there equals w / 144 at every position (checked numerically).
+- Grad-CAM++ on the MANIPULATED logit: the correlation between its MANIPULATED and REAL maps was +1.000 on all 11
+  photos (not class-sensitive); raw maximum about 3,600 on every photo.
+- Grad-CAM: MANIPULATED vs REAL map correlation -0.15 to -0.34. Its signed map on the logit difference plus the bias
+  difference reproduced the detector's logit difference to 4 decimals on all 11 photos.
+- Model-randomisation check (last block, conv_head, bn2 and classifier randomised, seed 0): correlation of the trained
+  map with the randomised map -0.26 to +0.21.
+- Consistency: the attribution pass and the detector gave identical logits (max difference 0) on all 11 photos.
+- Decision: Grad-CAM on logit[MANIPULATED] - logit[REAL]; Grad-CAM++ kept as a config option.
+
+## Region extraction on the same photos (measured, 2026-10-26)
+- Thresholding at 0.5 x the map maximum: peak regions covered 0.49-0.92% of the crop, bilinear specks at most 0.19%.
+  A 1% minimum area wrongly dropped the peak region on 4 of 11 photos, so the minimum was set to 0.35% (half a
+  12 x 12 feature cell).
+- Even with fake-class probability below 0.17, positive_mass was 1.8-5.7, i.e. every normalised map has a bright
+  area. This motivated the weak-evidence label.
+
 ## Robustness on 11 still face photos (measured, 2026-10-26)
 - 12 perturbations x 2 modes per photo (264 runs). Baseline: 1 photo predicted MANIPULATED (fake-class probability
   0.65), 10 predicted REAL (0.0004 to 0.16).
