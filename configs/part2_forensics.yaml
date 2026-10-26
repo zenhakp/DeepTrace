@@ -1,0 +1,12 @@
+# Design choices for Part 2 (forensics). Values are added here step by step, never silently.
+run:
+  seed: 42        # recorded for reproducibility; attribution itself is deterministic
+  device: cpu     # cpu | cuda | auto (everything in Part 2 must run on CPU)
+
+# Localization (model-indicated suspicious regions, not ground-truth manipulated pixels).
+attribution:
+  method: gradcam            # gradcam | gradcam++ (gradcam++ was not class-sensitive on this detector; see docs)
+  target_layer: bn2          # EfficientNet-B4 conv_head + BatchNorm + SiLU (1792 x 12 x 12), pooled into the head
+  target_class: 1            # 1 = MANIPULATED: "which regions pushed the decision towards MANIPULATED"
+  target_score: logit_diff   # logit_diff = logit[MANIPULATED] - logit[REAL] (what the softmax decision depends on) | logit
+  consistency_atol: 1.0e-4   # max allowed |logit difference| between the attribution pass and the detector
