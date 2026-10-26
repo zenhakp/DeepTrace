@@ -1,0 +1,522 @@
+{
+  "schema_version": "1.0",
+  "media_type": "video",
+  "generated_at": "2026-01-01T00:00:00+00:00",
+  "input": {
+    "file_name": "example_video.mp4",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size_bytes": 945413,
+    "width": 1024,
+    "height": 576,
+    "fps": 24.0,
+    "frame_count": 121,
+    "duration_s": 5.042
+  },
+  "model": {
+    "name": "EfficientNet-B4",
+    "version": "v2",
+    "checkpoint": "best.pt",
+    "checkpoint_sha256": "d00ae780e23a7f713d3f7af8e57e05a4a5e08382c005772499e9a7fcedabd107",
+    "checkpoint_epoch": 3,
+    "image_size": 380,
+    "trained_on": "DeepFakeFace + a face-cropped subset of the OpenFake train split (74 generators)"
+  },
+  "score_semantics": "fake_probability is the detector's softmax probability for the MANIPULATED class (for videos: its mean over frames with a usable face). confidence is the probability of the predicted class. Neither is calibrated, neither is forensic certainty, and neither is the probability that the media is actually manipulated. Suggested wording: 'The detector assigned a fake-class probability of 0.91.'",
+  "settings": {
+    "config_file": "part2_forensics.yaml",
+    "config_sha256": "1db01ef244bef367884829de603669d55147446f7c3f68a7f1e2032ad22fa628",
+    "seed": 42,
+    "attribution": {
+      "method": "gradcam",
+      "target_layer": "bn2",
+      "target_class": 1,
+      "target_score": "logit_diff",
+      "consistency_atol": 0.0001
+    },
+    "localization": {
+      "region_threshold": 0.5,
+      "min_region_area": 0.0035,
+      "max_regions": 3,
+      "min_fake_probability": 0.5
+    },
+    "robustness": {
+      "modes": [
+        "pipeline",
+        "fixed_crop"
+      ],
+      "min_overlap_fraction": 0.5,
+      "perturbations": {
+        "jpeg_quality": [
+          90,
+          70,
+          50
+        ],
+        "downscale": [
+          0.75,
+          0.5
+        ],
+        "gaussian_blur_sigma": [
+          1.0,
+          2.0
+        ],
+        "brightness": [
+          0.9,
+          1.1
+        ],
+        "contrast": [
+          0.9,
+          1.1
+        ],
+        "gaussian_noise_sigma": [
+          2.0
+        ]
+      }
+    },
+    "stability": {
+      "mode": "pipeline",
+      "margin_floor": 0.01,
+      "weights": {
+        "prediction": 0.4,
+        "confidence": 0.3,
+        "localization": 0.3
+      },
+      "bands": {
+        "high": 0.8,
+        "medium": 0.6
+      },
+      "cap_band": "MEDIUM",
+      "sensitivity_weights": {
+        "prediction_heavy": {
+          "prediction": 0.5,
+          "confidence": 0.3,
+          "localization": 0.2
+        },
+        "equal": {
+          "prediction": 0.34,
+          "confidence": 0.33,
+          "localization": 0.33
+        },
+        "localization_light": {
+          "prediction": 0.45,
+          "confidence": 0.45,
+          "localization": 0.1
+        }
+      }
+    },
+    "evidence": {
+      "robustness_modes": [
+        "pipeline"
+      ],
+      "small_face_min_side": 122
+    },
+    "video": {
+      "sample_fps": 2.0,
+      "max_frames": 120,
+      "interval_threshold": 0.5,
+      "min_interval_frames": 2,
+      "merge_gap_frames": 1,
+      "max_jump": 0.2,
+      "face_jump_iou": 0.3,
+      "low_face_coverage": 0.5,
+      "key_frames": {
+        "top_suspicious": 2,
+        "include_median": true
+      },
+      "robustness_modes": [
+        "pipeline"
+      ]
+    }
+  },
+  "artifacts": {
+    "key_frame_overlays": {
+      "24": "example_video_frame24_overlay.png",
+      "48": "example_video_frame48_overlay.png",
+      "120": "example_video_frame120_overlay.png"
+    }
+  },
+  "status": "OK",
+  "prediction": "MANIPULATED",
+  "confidence": 0.985951,
+  "fake_probability": 0.985951,
+  "real_probability": 0.014049,
+  "face": {
+    "usable_face_frames": 11,
+    "usable_face_fraction": 1.0,
+    "sampled_frames": 11
+  },
+  "aggregation": {
+    "method": "mean fake-class probability over frames with a usable face",
+    "mean": 0.986,
+    "median": 0.9925,
+    "max": 0.9994,
+    "min": 0.9615,
+    "manipulated_frame_fraction": 1.0,
+    "summary": "Mean fake-class probability 0.99 over 11 frame(s) with a usable face; not a probability that the video is manipulated."
+  },
+  "frames": [
+    {
+      "frame": 0,
+      "time_s": 0.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9948410391807556,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 12,
+      "time_s": 0.5,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9822885990142822,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 24,
+      "time_s": 1.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9994176626205444,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 36,
+      "time_s": 1.5,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9896635413169861,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 48,
+      "time_s": 2.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9925276041030884,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 60,
+      "time_s": 2.5,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9614567160606384,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 72,
+      "time_s": 3.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9946587681770325,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 84,
+      "time_s": 3.5,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9616163969039917,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 96,
+      "time_s": 4.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9939584732055664,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 108,
+      "time_s": 4.5,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9786738753318787,
+      "evidence_strength": "model_indicated"
+    },
+    {
+      "frame": 120,
+      "time_s": 5.0,
+      "status": "OK",
+      "prediction": "MANIPULATED",
+      "fake_probability": 0.9963590502738953,
+      "evidence_strength": "model_indicated"
+    }
+  ],
+  "localization": {
+    "method": "gradcam",
+    "note": "Regions are reported for the key frames only."
+  },
+  "suspicious_regions": [
+    {
+      "frame": 24,
+      "time_s": 1.0,
+      "bbox_crop": [
+        170,
+        130,
+        310,
+        303
+      ],
+      "bbox_original": [
+        613.2,
+        141.7,
+        727.1,
+        282.4
+      ],
+      "area_fraction": 0.1091,
+      "peak": 0.995,
+      "share_of_map": 0.3156,
+      "rank": 1
+    },
+    {
+      "frame": 48,
+      "time_s": 2.0,
+      "bbox_crop": [
+        188,
+        105,
+        312,
+        304
+      ],
+      "bbox_original": [
+        642.4,
+        120.6,
+        742.2,
+        280.8
+      ],
+      "area_fraction": 0.1023,
+      "peak": 1.0,
+      "share_of_map": 0.2794,
+      "rank": 1
+    },
+    {
+      "frame": 120,
+      "time_s": 5.0,
+      "bbox_crop": [
+        123,
+        154,
+        284,
+        307
+      ],
+      "bbox_original": [
+        566.9,
+        175.1,
+        702.9,
+        304.3
+      ],
+      "area_fraction": 0.0812,
+      "peak": 0.9983,
+      "share_of_map": 0.2777,
+      "rank": 1
+    }
+  ],
+  "prediction_stability": {
+    "value": 1.0,
+    "method": "median over key frames",
+    "per_key_frame": [
+      {
+        "frame": 24,
+        "time_s": 1.0,
+        "value": 1.0,
+        "agreeing_runs": 12,
+        "runs": 12,
+        "flips": 0,
+        "no_face": 0
+      },
+      {
+        "frame": 48,
+        "time_s": 2.0,
+        "value": 1.0,
+        "agreeing_runs": 12,
+        "runs": 12,
+        "flips": 0,
+        "no_face": 0
+      },
+      {
+        "frame": 120,
+        "time_s": 5.0,
+        "value": 1.0,
+        "agreeing_runs": 12,
+        "runs": 12,
+        "flips": 0,
+        "no_face": 0
+      }
+    ]
+  },
+  "confidence_stability": {
+    "value": 0.9613,
+    "method": "median over key frames",
+    "per_key_frame": [
+      {
+        "frame": 24,
+        "time_s": 1.0,
+        "value": 0.996,
+        "method": "margin_retention",
+        "baseline_fake_probability": 0.9994176626205444,
+        "baseline_margin": 0.4994,
+        "mean_abs_delta_fake_probability": 0.002,
+        "max_abs_delta_fake_probability": 0.0104
+      },
+      {
+        "frame": 48,
+        "time_s": 2.0,
+        "value": 0.9181,
+        "method": "margin_retention",
+        "baseline_fake_probability": 0.9925276041030884,
+        "baseline_margin": 0.4925,
+        "mean_abs_delta_fake_probability": 0.0403,
+        "max_abs_delta_fake_probability": 0.3069
+      },
+      {
+        "frame": 120,
+        "time_s": 5.0,
+        "value": 0.9613,
+        "method": "margin_retention",
+        "baseline_fake_probability": 0.9963590502738953,
+        "baseline_margin": 0.4964,
+        "mean_abs_delta_fake_probability": 0.0192,
+        "max_abs_delta_fake_probability": 0.0848
+      }
+    ]
+  },
+  "localization_stability": {
+    "value": 0.925,
+    "method": "median over key frames",
+    "per_key_frame": [
+      {
+        "frame": 24,
+        "time_s": 1.0,
+        "value": 0.9389,
+        "method": "mean_clipped_map_correlation",
+        "compared_runs": 12,
+        "median_map_correlation": 0.9581
+      },
+      {
+        "frame": 48,
+        "time_s": 2.0,
+        "value": 0.8981,
+        "method": "mean_clipped_map_correlation",
+        "compared_runs": 12,
+        "median_map_correlation": 0.9427
+      },
+      {
+        "frame": 120,
+        "time_s": 5.0,
+        "value": 0.925,
+        "method": "mean_clipped_map_correlation",
+        "compared_runs": 12,
+        "median_map_correlation": 0.948
+      }
+    ]
+  },
+  "evidence_stability": {
+    "score": 0.9659,
+    "band": "HIGH",
+    "band_uncapped": "HIGH",
+    "band_capped": false,
+    "cap_reason": null,
+    "method": "median of key-frame Evidence Stability Scores",
+    "components": {
+      "prediction": 1.0,
+      "confidence": 0.9613,
+      "localization": 0.925
+    },
+    "points_lost": {
+      "prediction": 0.0,
+      "confidence": 0.0116,
+      "localization": 0.0225
+    },
+    "driver": "localization",
+    "key_frames": [
+      {
+        "frame": 24,
+        "time_s": 1.0,
+        "score": 0.9805,
+        "band": "HIGH",
+        "driver": "localization"
+      },
+      {
+        "frame": 48,
+        "time_s": 2.0,
+        "score": 0.9449,
+        "band": "HIGH",
+        "driver": "localization"
+      },
+      {
+        "frame": 120,
+        "time_s": 5.0,
+        "score": 0.9659,
+        "band": "HIGH",
+        "driver": "localization"
+      }
+    ],
+    "bias_note": "Key frames are the most suspicious frames plus the median frame, which biases this score downward (conservative).",
+    "summary": "Video Evidence Stability Score 0.97 (HIGH; median of 3 key frames; project-defined, not a probability).",
+    "weights": {
+      "prediction": 0.4,
+      "confidence": 0.3,
+      "localization": 0.3
+    },
+    "bands": {
+      "high": 0.8,
+      "medium": 0.6
+    },
+    "mode": "pipeline",
+    "note": "The Evidence Stability Score is a project-defined summary of how the evidence held up under a small set of controlled perturbations. It is not a probability that the image is manipulated; the weights and bands are design choices, not calibrated."
+  },
+  "temporal_stability": {
+    "value": 1.0,
+    "method": "fraction_of_steady_consecutive_pairs",
+    "pairs": 10,
+    "steady_pairs": 10,
+    "label_flips": 0,
+    "label_agreement": 1.0,
+    "fake_probability_std": 0.0129,
+    "mean_abs_change": 0.0205,
+    "face_jumps": [],
+    "max_jump": 0.2,
+    "face_jump_iou": 0.3
+  },
+  "suspicious_intervals": [
+    {
+      "start_s": 0.0,
+      "end_s": 5.0,
+      "start_frame": 0,
+      "end_frame": 120,
+      "sampled_frames": 11,
+      "suspicious_frames": 11,
+      "mean_fake_probability": 0.986,
+      "max_fake_probability": 0.9994,
+      "peak_time_s": 1.0
+    }
+  ],
+  "isolated_suspicious_frames": [],
+  "robustness": {
+    "modes": [
+      "pipeline"
+    ],
+    "key_frames": [
+      24,
+      48,
+      120
+    ],
+    "note": "A small set of controlled perturbations; it does not cover all real-world distortion, and results on a few images do not generalise."
+  },
+  "robustness_observations": [],
+  "observations": [],
+  "warnings": [],
+  "limitations": [
+    "Trained on DeepFakeFace (Stable Diffusion fakes, InsightFace face swaps) and a face-cropped subset of OpenFake (74 diffusion and transformer image and video generators).",
+    "On held-out OpenFake generators (sample of 1,300 images, only 90 real) ROC-AUC was 0.82, recall 68% and false-positive rate 17%; some generators (for example flux-2-klein-9b, 33% recall) are mostly missed.",
+    "On StyleGAN-generated faces versus real FFHQ photos (5,045 images) ROC-AUC was 0.49, i.e. chance: GAN-generated faces are not detected.",
+    "Confidence is the softmax probability of the predicted class (uncalibrated). It is not forensic certainty and not the probability that the image is actually manipulated.",
+    "Only the largest detected face is analysed; images without a detectable face receive no prediction.",
+    "Suspicious regions are model-indicated regions from Grad-CAM on a 12x12 feature grid (about 32 px per cell of the 380 px face crop); they are not ground-truth manipulated pixels. Localization accuracy is not yet measured (no manipulation masks are available).",
+    "A small set of controlled perturbations; it does not cover all real-world distortion, and results on a few images do not generalise.",
+    "The Evidence Stability Score is a project-defined summary of how the evidence held up under a small set of controlled perturbations. It is not a probability that the image is manipulated; the weights and bands are design choices, not calibrated.",
+    "Frames are analysed independently by the image detector; there is no temporal model.",
+    "Only the largest detected face in each frame is analysed; in videos with several people the analysed face can change between frames (reported as face jumps).",
+    "Only sampled frames are analysed, so short events between sampled frames can be missed.",
+    "Robustness and the Evidence Stability Score are measured on a few key frames, chosen as the most suspicious frames plus the median frame; this deliberately biases the video score downward (conservative).",
+    "Video compression, low source resolution and blur can shift frame predictions: on still photos, mild blur and recompression moved REAL predictions towards MANIPULATED. One real phone clip stayed REAL and one AI-generated clip was MANIPULATED, but that is one clip of each with different source quality, so compression or source quality as a cause is not ruled out. Video detection accuracy is not yet measured."
+  ]
+}

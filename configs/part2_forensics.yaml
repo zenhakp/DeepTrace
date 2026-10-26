@@ -80,5 +80,7 @@ video:
 
 # Structured evidence.
 evidence:
+  robustness_modes: [pipeline]   # the ESS mode only (~10 s per image on CPU); the fixed_crop diagnostic stays in
+                                 # scripts/robustness_image.py
   small_face_min_side: 122   # Part 2 limitation: face crops under 122 px native were less reliable in Part 1 testing
                              # (Part 1's own small_face warning uses 96 px; the stricter 122 px is our choice)

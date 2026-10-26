@@ -164,12 +164,14 @@ def _video_ess(per_frame: List[Dict[str, Any]], weights, bands, cap_band) -> Opt
                for k in ok)
     capped = cap_band is not None and lost > 0 and BAND_ORDER.index(uncapped) > BAND_ORDER.index(cap_band)
     label = cap_band if capped else uncapped
+    comps = {c: round(float(np.median([k["stability"][f"{c}_stability"]["value"] for k in ok])), 4) for c in COMPONENTS}
+    lost_points = {c: round(weights[c] * (1 - comps[c]), 4) for c in COMPONENTS}
+    driver = max(COMPONENTS, key=lambda c: lost_points[c]) if max(lost_points.values()) > 0 else None
     return {"score": round(score, 4), "band": label, "band_uncapped": uncapped, "band_capped": capped,
             "cap_reason": (f"{lost} prediction flip(s) or lost face(s) across the key frames; any flip or NO_FACE caps "
                            f"the band at {cap_band} (project rule)." if capped else None),
             "method": "median of key-frame Evidence Stability Scores",
-            "components": {c: round(float(np.median([k["stability"][f"{c}_stability"]["value"] for k in ok])), 4)
-                           for c in COMPONENTS},
+            "components": comps, "points_lost": lost_points, "driver": driver,
             "key_frames": [{"frame": k["frame"], "time_s": k["time_s"],
                             "score": k["stability"]["evidence_stability"]["score"],
                             "band": k["stability"]["evidence_stability"]["band"],
@@ -197,7 +199,7 @@ def analyze_video(det, path, cfg: Dict[str, Any], on_frame=None) -> Dict[str, An
                        "fake_probability": r["fake_probability"], "confidence": r["confidence"],
                        "crop_box": r.get("crop_box"), "native_crop_side": r.get("native_crop_side"),
                        "warnings": [w["code"] for w in r["warnings"]], "evidence_strength": loc["evidence_strength"],
-                       "top_region": loc["regions"][0]["bbox_original"] if loc["regions"] else None})
+                       "regions": loc["regions"]})
         if on_frame:
             on_frame(frames[-1])
     if not frames:
