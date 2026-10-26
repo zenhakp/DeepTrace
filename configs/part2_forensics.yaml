@@ -62,3 +62,23 @@ stability:
     prediction_heavy: {prediction: 0.5, confidence: 0.3, localization: 0.2}
     equal: {prediction: 0.34, confidence: 0.33, localization: 0.33}
     localization_light: {prediction: 0.45, confidence: 0.45, localization: 0.1}
+
+# Video: the image detector on sampled frames (no temporal model). Design choices.
+video:
+  sample_fps: 2.0            # frames analysed per second of video (detector + Grad-CAM, about 0.8 s per frame on CPU)
+  max_frames: 120            # cap on sampled frames (60 s of video at 2 fps); later frames are not analysed
+  interval_threshold: 0.5    # a sampled frame is suspicious if its fake-class probability is >= this
+  min_interval_frames: 2     # an interval needs >= 2 suspicious sampled frames; single ones are reported as isolated
+  merge_gap_frames: 1        # bridge gaps of up to 1 sampled frame (below threshold or no face) inside an interval
+  max_jump: 0.2              # temporal stability: a consecutive pair is steady if labels agree and |change| < 0.2
+  face_jump_iou: 0.3         # consecutive face crops overlapping less than this are reported as a face jump (finding)
+  low_face_coverage: 0.5     # warn if fewer than 50% of sampled frames have a usable face
+  key_frames:                # robustness + ESS run only on these frames (full perturbation set: ~10 s per frame)
+    top_suspicious: 2        # the 2 frames with the highest fake-class probability (biases the video ESS downward)
+    include_median: true     # plus the median frame by fake-class probability
+  robustness_modes: [pipeline]   # the ESS mode only, to halve the key-frame cost
+
+# Structured evidence.
+evidence:
+  small_face_min_side: 122   # Part 2 limitation: face crops under 122 px native were less reliable in Part 1 testing
+                             # (Part 1's own small_face warning uses 96 px; the stricter 122 px is our choice)
