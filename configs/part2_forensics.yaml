@@ -10,3 +10,20 @@ attribution:
   target_class: 1            # 1 = MANIPULATED: "which regions pushed the decision towards MANIPULATED"
   target_score: logit_diff   # logit_diff = logit[MANIPULATED] - logit[REAL] (what the softmax decision depends on) | logit
   consistency_atol: 1.0e-4   # max allowed |logit difference| between the attribution pass and the detector
+
+# Suspicious regions from the attribution map (design choices, not tuned on labelled masks; none exist).
+localization:
+  region_threshold: 0.5      # a pixel belongs to a region if its map value >= 0.5 x the map maximum
+  min_region_area: 0.0035    # half of one 12x12 feature cell (a cell is 1/144 = 0.69% of the crop). Drops bilinear
+                             # specks (<= 0.19% on our samples) but keeps single-cell peaks (0.49-0.92% measured);
+                             # 1% was tried first and wrongly dropped the peak region on 4 of 11 samples.
+  max_regions: 3             # report at most the 3 regions holding the largest share of the map
+  min_fake_probability: 0.5  # weak-evidence rule: below this the detector leaned REAL, so regions are labelled
+                             # "weak MANIPULATED evidence; shown for transparency only". 0.5 is the detector's own
+                             # decision point, so the label never contradicts the verdict. Our own choice.
+
+# Overlay figure (presentation only; does not affect any number).
+overlay:
+  alpha_indicated: 0.45      # heatmap opacity when evidence_strength = model_indicated
+  alpha_weak: 0.25           # fainter heatmap and gray boxes when evidence_strength = weak
+  colormap: inferno          # perceptually uniform; inferno | viridis | jet
