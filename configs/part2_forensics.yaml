@@ -41,3 +41,24 @@ robustness:
     contrast: [0.9, 1.1]                # mild: -10% / +10% contrast (PIL ImageEnhance.Contrast factor)
     gaussian_noise_sigma: [2.0]         # additive Gaussian noise, standard deviation on the 0-255 scale (sensor noise);
                                         # seeded with run.seed
+
+# Stability and Evidence Stability Score (ESS). Project-defined, NOT a probability of manipulation; the weights and
+# bands are our own design choices, not calibrated. Formula: docs/part2_forensics.md and forensics/stability.py.
+stability:
+  mode: pipeline             # robustness mode that feeds the ESS (realistic chain incl. face detection + crop);
+                             # the other mode is reported as a diagnostic only, never mixed into the score
+  margin_floor: 0.01         # confidence stability divides changes by max(|p0 - 0.5|, margin_floor)
+  weights:                   # must be >= 0 and sum to 1
+    prediction: 0.4          # the verdict holding is the primary question
+    confidence: 0.3          # margin retention: how much of the distance to the 0.5 boundary was kept
+    localization: 0.3        # mean clipped correlation of the Grad-CAM map with the baseline map
+  bands:                     # HIGH if ESS >= high, MEDIUM if ESS >= medium, else LOW (our thresholds)
+    high: 0.80
+    medium: 0.60
+  cap_band: MEDIUM           # project rule: any prediction flip or NO_FACE in the ESS mode caps the band at MEDIUM
+                             # (a verdict that changed under a mild perturbation is never reported as HIGH); the score
+                             # is unchanged and band_capped / cap_reason are recorded. null disables the cap.
+  sensitivity_weights:       # alternative weightings used only to report how many bands would change (viva defence)
+    prediction_heavy: {prediction: 0.5, confidence: 0.3, localization: 0.2}
+    equal: {prediction: 0.34, confidence: 0.33, localization: 0.33}
+    localization_light: {prediction: 0.45, confidence: 0.45, localization: 0.1}
