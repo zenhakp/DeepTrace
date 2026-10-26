@@ -27,3 +27,17 @@ overlay:
   alpha_indicated: 0.45      # heatmap opacity when evidence_strength = model_indicated
   alpha_weak: 0.25           # fainter heatmap and gray boxes when evidence_strength = weak
   colormap: inferno          # perceptually uniform; inferno | viridis | jet
+
+# Robustness: controlled perturbations (design choices). A few perturbations do not cover real-world distortion.
+robustness:
+  modes: [pipeline, fixed_crop]   # pipeline = perturb the original photo and rerun face detection + crop (realistic);
+                                  # fixed_crop = perturb the baseline 380 px crop (controlled, no crop shift)
+  min_overlap_fraction: 0.5       # pipeline maps are compared only if the crops overlap on >= 50% of the baseline crop
+  perturbations:                  # pipeline levels are in original-image pixels, fixed_crop levels in 380 px crop pixels
+    jpeg_quality: [90, 70, 50]          # re-encode at these JPEG qualities (social media and messaging recompression)
+    downscale: [0.75, 0.5]              # bilinear downscale by this factor, bicubic back to the same size (detail loss)
+    gaussian_blur_sigma: [1.0, 2.0]     # mild Gaussian blur, standard deviation in pixels (focus / motion softness)
+    brightness: [0.9, 1.1]              # mild: -10% / +10% brightness (PIL ImageEnhance.Brightness factor)
+    contrast: [0.9, 1.1]                # mild: -10% / +10% contrast (PIL ImageEnhance.Contrast factor)
+    gaussian_noise_sigma: [2.0]         # additive Gaussian noise, standard deviation on the 0-255 scale (sensor noise);
+                                        # seeded with run.seed
