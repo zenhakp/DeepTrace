@@ -1,7 +1,7 @@
 """Video analysis: sampled frames -> detector + Grad-CAM -> aggregation, temporal stability, suspicious intervals,
 and robustness + Evidence Stability Score on a few key frames.
 
-  python scripts/analyze_video.py --video "$HOME/Downloads/samples/clip.mp4"
+  python scripts/analyze_video.py --video "path/to/clip.mp4"
 Writes <stem>_video.json and key-frame overlays into --out-dir (default ~/Downloads/deeptrace_outputs/video;
 must be outside the repository). Quote paths with spaces. A test clip only tests the pipeline; it is not evidence
 of detection accuracy.

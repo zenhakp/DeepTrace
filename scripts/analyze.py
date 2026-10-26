@@ -1,7 +1,7 @@
 """Full Part 2 analysis: one structured evidence JSON per image or video (the Part 3 contract).
 
-  python scripts/analyze.py --input "$HOME/Downloads/samples/1.jpg"
-  python scripts/analyze.py --input "$HOME/Downloads/samples/clip.mp4" --out-dir "$HOME/Downloads/deeptrace_outputs/evidence"
+  python scripts/analyze.py --input "path/to/photo.jpg"
+  python scripts/analyze.py --input "path/to/clip.mp4" --out-dir "$HOME/Downloads/deeptrace_outputs/evidence"
 Writes <stem>_evidence.json plus overlay PNG(s) into --out-dir (default ~/Downloads/deeptrace_outputs/evidence;
 must be outside the repository). Every document is checked against docs/part2_evidence_schema.json before it is
 written. Quote paths with spaces.

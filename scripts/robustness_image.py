@@ -1,6 +1,6 @@
 """Robustness for one or more images: controlled perturbations -> per-image JSON and a measured summary table.
 
-  python scripts/robustness_image.py --image "$HOME/Downloads/samples/1.jpg" "$HOME/Downloads/samples/2.jpg"
+  python scripts/robustness_image.py --image "path/to/photo1.jpg" "path/to/photo2.jpg"
 Writes <stem>_robustness.json per image and robustness_summary.md / .json for the whole run into --out-dir
 (default ~/Downloads/deeptrace_outputs/robustness; must be outside the repository). Quote paths with spaces.
 A prediction flip or NO_FACE under a perturbation is recorded as an observation, not an error.

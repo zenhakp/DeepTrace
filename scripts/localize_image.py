@@ -1,6 +1,6 @@
 """Localization for one or more images: detector result + Grad-CAM map -> regions JSON and overlay PNG.
 
-  python scripts/localize_image.py --image ~/Downloads/samples/1.jpg ~/Downloads/samples/2.jpg
+  python scripts/localize_image.py --image "path/to/photo1.jpg" "path/to/photo2.jpg"
   python scripts/localize_image.py --image photo.jpg --out-dir ~/Downloads/deeptrace_outputs/localization
 Writes <stem>_localization.json and <stem>_overlay.png. The output folder must be outside the repository.
 Regions are model-indicated suspicious regions, not ground-truth manipulated pixels.
