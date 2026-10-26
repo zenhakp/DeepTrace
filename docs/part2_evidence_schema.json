@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeepTrace evidence document",
+  "description": "One document per analysed image or video (Part 2 -> Part 3 contract, schema_version 1.0). Described in docs/part2_evidence_schema.md. Fields that do not apply are null or [].",
+  "type": "object",
+  "required": ["schema_version", "media_type", "generated_at", "status", "input", "model", "score_semantics",
+               "prediction", "confidence", "fake_probability", "real_probability", "face", "aggregation", "frames",
+               "localization", "suspicious_regions", "prediction_stability", "confidence_stability",
+               "localization_stability", "evidence_stability", "temporal_stability", "suspicious_intervals",
+               "isolated_suspicious_frames", "robustness", "robustness_observations", "observations", "warnings",
+               "limitations", "settings", "artifacts"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "media_type": {"type": "string", "enum": ["image", "video"]},
+    "generated_at": {"type": "string", "description": "UTC time, ISO 8601"},
+    "status": {"type": "string", "enum": ["OK", "NO_FACE"], "description": "NO_FACE: no prediction exists; do not invent one"},
+    "input": {
+      "type": "object",
+      "required": ["file_name", "sha256", "size_bytes"],
+      "properties": {
+        "file_name": {"type": "string"},
+        "sha256": {"type": "string"},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "width": {"type": "integer"}, "height": {"type": "integer"},
+        "fps": {"type": "number"}, "frame_count": {"type": "integer"}, "duration_s": {"type": ["number", "null"]}
+      }
+    },
+    "model": {
+      "type": "object",
+      "required": ["name", "version", "checkpoint_sha256"],
+      "properties": {
+        "name": {"type": "string"}, "version": {"type": "string"}, "checkpoint": {"type": "string"},
+        "checkpoint_sha256": {"type": ["string", "null"]}, "checkpoint_epoch": {"type": ["integer", "null"]},
+        "image_size": {"type": "integer"}, "trained_on": {"type": "string"}
+      }
+    },
+    "score_semantics": {"type": "string"},
+    "prediction": {"type": ["string", "null"], "enum": ["REAL", "MANIPULATED", null]},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "fake_probability": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "real_probability": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "face": {"type": "object"},
+    "aggregation": {"type": ["object", "null"], "description": "video only"},
+    "frames": {
+      "type": ["array", "null"], "description": "video only: one entry per sampled frame",
+      "items": {"type": "object", "required": ["frame", "time_s", "status", "fake_probability"],
+                "properties": {"fake_probability": {"type": ["number", "null"], "minimum": 0, "maximum": 1}}}
+    },
+    "localization": {"type": ["object", "null"]},
+    "suspicious_regions": {
+      "type": "array",
+      "items": {"type": "object", "required": ["rank", "bbox_original", "bbox_crop", "area_fraction", "share_of_map"],
+                "properties": {"rank": {"type": "integer", "minimum": 1},
+                               "bbox_original": {"type": "array", "items": {"type": "number"}},
+                               "bbox_crop": {"type": "array", "items": {"type": "number"}},
+                               "area_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+                               "share_of_map": {"type": "number", "minimum": 0, "maximum": 1}}}
+    },
+    "prediction_stability": {"type": ["object", "null"], "required": ["value"],
+                             "properties": {"value": {"type": "number", "minimum": 0, "maximum": 1}}},
+    "confidence_stability": {"type": ["object", "null"], "required": ["value"],
+                             "properties": {"value": {"type": "number", "minimum": 0, "maximum": 1}}},
+    "localization_stability": {"type": ["object", "null"], "required": ["value"],
+                               "properties": {"value": {"type": "number", "minimum": 0, "maximum": 1}}},
+    "evidence_stability": {
+      "type": ["object", "null"],
+      "required": ["score", "band", "band_uncapped", "band_capped", "cap_reason", "components", "driver", "summary",
+                   "weights", "bands", "mode", "note"],
+      "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "band": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
+        "band_uncapped": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
+        "band_capped": {"type": "boolean"},
+        "cap_reason": {"type": ["string", "null"]},
+        "components": {"type": "object"},
+        "driver": {"type": ["string", "null"], "enum": ["prediction", "confidence", "localization", null]},
+        "summary": {"type": "string"}, "note": {"type": "string"}
+      }
+    },
+    "temporal_stability": {
+      "type": ["object", "null"], "description": "null for images and for videos with fewer than 2 face frames",
+      "required": ["value", "pairs", "steady_pairs", "label_flips", "face_jumps"],
+      "properties": {"value": {"type": "number", "minimum": 0, "maximum": 1}}
+    },
+    "suspicious_intervals": {
+      "type": "array",
+      "items": {"type": "object",
+                "required": ["start_s", "end_s", "suspicious_frames", "mean_fake_probability", "max_fake_probability"],
+                "properties": {"start_s": {"type": "number", "minimum": 0}, "end_s": {"type": "number", "minimum": 0}}}
+    },
+    "isolated_suspicious_frames": {"type": "array", "items": {"type": "object"}},
+    "robustness": {"type": ["object", "null"]},
+    "robustness_observations": {
+      "type": "array",
+      "items": {"type": "object", "required": ["kind", "message"],
+                "properties": {"kind": {"type": "string", "enum": ["prediction_flip", "no_face"]},
+                               "message": {"type": "string"}}}
+    },
+    "observations": {
+      "type": "array", "description": "video findings such as frames without a face or face jumps",
+      "items": {"type": "object", "required": ["kind", "message"],
+                "properties": {"kind": {"type": "string", "enum": ["no_face_frames", "face_jump"]},
+                               "message": {"type": "string"}}}
+    },
+    "warnings": {"type": "array",
+                 "items": {"type": "object", "required": ["code", "message"],
+                           "properties": {"code": {"type": "string"}, "message": {"type": "string"}}}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "settings": {"type": "object", "required": ["config_sha256", "seed"]},
+    "artifacts": {"type": "object", "description": "file names of outputs written next to this document"}
+  }
+}

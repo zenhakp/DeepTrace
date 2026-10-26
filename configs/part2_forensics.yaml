@@ -1,0 +1,86 @@
+# Design choices for Part 2 (forensics). Values are added here step by step, never silently.
+run:
+  seed: 42        # recorded for reproducibility; attribution itself is deterministic
+  device: cpu     # cpu | cuda | auto (everything in Part 2 must run on CPU)
+
+# Localization (model-indicated suspicious regions, not ground-truth manipulated pixels).
+attribution:
+  method: gradcam            # gradcam | gradcam++ (gradcam++ was not class-sensitive on this detector; see docs)
+  target_layer: bn2          # EfficientNet-B4 conv_head + BatchNorm + SiLU (1792 x 12 x 12), pooled into the head
+  target_class: 1            # 1 = MANIPULATED: "which regions pushed the decision towards MANIPULATED"
+  target_score: logit_diff   # logit_diff = logit[MANIPULATED] - logit[REAL] (what the softmax decision depends on) | logit
+  consistency_atol: 1.0e-4   # max allowed |logit difference| between the attribution pass and the detector
+
+# Suspicious regions from the attribution map (design choices, not tuned on labelled masks; none exist).
+localization:
+  region_threshold: 0.5      # a pixel belongs to a region if its map value >= 0.5 x the map maximum
+  min_region_area: 0.0035    # half of one 12x12 feature cell (a cell is 1/144 = 0.69% of the crop). Drops bilinear
+                             # specks (<= 0.19% on our samples) but keeps single-cell peaks (0.49-0.92% measured);
+                             # 1% was tried first and wrongly dropped the peak region on 4 of 11 samples.
+  max_regions: 3             # report at most the 3 regions holding the largest share of the map
+  min_fake_probability: 0.5  # weak-evidence rule: below this the detector leaned REAL, so regions are labelled
+                             # "weak MANIPULATED evidence; shown for transparency only". 0.5 is the detector's own
+                             # decision point, so the label never contradicts the verdict. Our own choice.
+
+# Overlay figure (presentation only; does not affect any number).
+overlay:
+  alpha_indicated: 0.45      # heatmap opacity when evidence_strength = model_indicated
+  alpha_weak: 0.25           # fainter heatmap and gray boxes when evidence_strength = weak
+  colormap: inferno          # perceptually uniform; inferno | viridis | jet
+
+# Robustness: controlled perturbations (design choices). A few perturbations do not cover real-world distortion.
+robustness:
+  modes: [pipeline, fixed_crop]   # pipeline = perturb the original photo and rerun face detection + crop (realistic);
+                                  # fixed_crop = perturb the baseline 380 px crop (controlled, no crop shift)
+  min_overlap_fraction: 0.5       # pipeline maps are compared only if the crops overlap on >= 50% of the baseline crop
+  perturbations:                  # pipeline levels are in original-image pixels, fixed_crop levels in 380 px crop pixels
+    jpeg_quality: [90, 70, 50]          # re-encode at these JPEG qualities (social media and messaging recompression)
+    downscale: [0.75, 0.5]              # bilinear downscale by this factor, bicubic back to the same size (detail loss)
+    gaussian_blur_sigma: [1.0, 2.0]     # mild Gaussian blur, standard deviation in pixels (focus / motion softness)
+    brightness: [0.9, 1.1]              # mild: -10% / +10% brightness (PIL ImageEnhance.Brightness factor)
+    contrast: [0.9, 1.1]                # mild: -10% / +10% contrast (PIL ImageEnhance.Contrast factor)
+    gaussian_noise_sigma: [2.0]         # additive Gaussian noise, standard deviation on the 0-255 scale (sensor noise);
+                                        # seeded with run.seed
+
+# Stability and Evidence Stability Score (ESS). Project-defined, NOT a probability of manipulation; the weights and
+# bands are our own design choices, not calibrated. Formula: docs/part2_forensics.md and forensics/stability.py.
+stability:
+  mode: pipeline             # robustness mode that feeds the ESS (realistic chain incl. face detection + crop);
+                             # the other mode is reported as a diagnostic only, never mixed into the score
+  margin_floor: 0.01         # confidence stability divides changes by max(|p0 - 0.5|, margin_floor)
+  weights:                   # must be >= 0 and sum to 1
+    prediction: 0.4          # the verdict holding is the primary question
+    confidence: 0.3          # margin retention: how much of the distance to the 0.5 boundary was kept
+    localization: 0.3        # mean clipped correlation of the Grad-CAM map with the baseline map
+  bands:                     # HIGH if ESS >= high, MEDIUM if ESS >= medium, else LOW (our thresholds)
+    high: 0.80
+    medium: 0.60
+  cap_band: MEDIUM           # project rule: any prediction flip or NO_FACE in the ESS mode caps the band at MEDIUM
+                             # (a verdict that changed under a mild perturbation is never reported as HIGH); the score
+                             # is unchanged and band_capped / cap_reason are recorded. null disables the cap.
+  sensitivity_weights:       # alternative weightings used only to report how many bands would change (viva defence)
+    prediction_heavy: {prediction: 0.5, confidence: 0.3, localization: 0.2}
+    equal: {prediction: 0.34, confidence: 0.33, localization: 0.33}
+    localization_light: {prediction: 0.45, confidence: 0.45, localization: 0.1}
+
+# Video: the image detector on sampled frames (no temporal model). Design choices.
+video:
+  sample_fps: 2.0            # frames analysed per second of video (detector + Grad-CAM, about 0.8 s per frame on CPU)
+  max_frames: 120            # cap on sampled frames (60 s of video at 2 fps); later frames are not analysed
+  interval_threshold: 0.5    # a sampled frame is suspicious if its fake-class probability is >= this
+  min_interval_frames: 2     # an interval needs >= 2 suspicious sampled frames; single ones are reported as isolated
+  merge_gap_frames: 1        # bridge gaps of up to 1 sampled frame (below threshold or no face) inside an interval
+  max_jump: 0.2              # temporal stability: a consecutive pair is steady if labels agree and |change| < 0.2
+  face_jump_iou: 0.3         # consecutive face crops overlapping less than this are reported as a face jump (finding)
+  low_face_coverage: 0.5     # warn if fewer than 50% of sampled frames have a usable face
+  key_frames:                # robustness + ESS run only on these frames (full perturbation set: ~10 s per frame)
+    top_suspicious: 2        # the 2 frames with the highest fake-class probability (biases the video ESS downward)
+    include_median: true     # plus the median frame by fake-class probability
+  robustness_modes: [pipeline]   # the ESS mode only, to halve the key-frame cost
+
+# Structured evidence.
+evidence:
+  robustness_modes: [pipeline]   # the ESS mode only (~10 s per image on CPU); the fixed_crop diagnostic stays in
+                                 # scripts/robustness_image.py
+  small_face_min_side: 122   # Part 2 limitation: face crops under 122 px native were less reliable in Part 1 testing
+                             # (Part 1's own small_face warning uses 96 px; the stricter 122 px is our choice)
