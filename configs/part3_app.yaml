@@ -1,0 +1,14 @@
+# Design choices for Part 3 (app). Values are added here step by step, never silently.
+run:
+  seed: 42        # passed to the LLM: the same model + the same prompt gives the same text
+  device: cpu     # required by the shared config loader; the app itself never needs a GPU
+
+# Local LLM served by Ollama on this laptop. It explains the evidence JSON; it is never a detector.
+llm:
+  base_url: http://127.0.0.1:11434   # Ollama's default; 127.0.0.1 = not reachable from other machines
+  model: qwen3:4b-instruct           # chosen by measurement (docs/part3_llm_setup.md): no wording violation
+                                     # on 3 examples vs 3 for llama3.2:3b; about 2x slower. Not plain qwen3:4b:
+                                     # that tag is the slower "thinking" variant
+  temperature: 0.0                   # most repeatable wording; the explainer must not improvise
+  num_ctx: 4096                      # Ollama's default context, set explicitly to bound RAM use
+  timeout_s: 300                     # CPU generation is slow; after 5 min the LLM counts as unavailable
