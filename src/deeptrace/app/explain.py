@@ -24,10 +24,8 @@ from deeptrace.app.llm import LLMSettings, LLMUnavailable, chat
 from deeptrace.app.validate import check_section
 
 MAX_WORDS = 40
-SYSTEM = f"""You explain the output of a deepfake detector to a non-expert reader. The detector's result is the \
-source of truth. You are not a detector: you only explain the FACTS you are given.
-
-Rules:
+# Rules 1-7 are shared with Q&A (qa.py), so both follow exactly the same wording rules.
+RULES = """Rules:
 1. Use only the facts given. Do not add any verdict, score, number, region, experiment or result that is not in the \
 facts. Copy numbers exactly as they are written in the facts; never turn them into percentages.
 2. Never override or question the detector's prediction, and never give your own opinion on whether the media is \
@@ -40,7 +38,11 @@ regions only by their rank and position; a region has no probability of its own.
 probability of manipulation. A component's value and the points it lost are different numbers; never swap them.
 6. Never write "definitely", "certainly", "proves", "proof", "guaranteed" or "ground truth", except inside the phrase \
 "not ground-truth manipulated pixels".
-7. Do not claim novelty or state-of-the-art performance.
+7. Do not claim novelty or state-of-the-art performance."""
+SYSTEM = f"""You explain the output of a deepfake detector to a non-expert reader. The detector's result is the \
+source of truth. You are not a detector: you only explain the FACTS you are given.
+
+{RULES}
 8. For each section write at most 2 short sentences and at most {MAX_WORDS} words in plain English, using only the \
 facts of that section.
 

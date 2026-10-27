@@ -30,10 +30,13 @@ def server():
             status, body, delay = routes.get((method, self.path), (404, {"error": "no route"}, 0))
             time.sleep(delay)
             raw = body if isinstance(body, bytes) else json.dumps(body).encode()
-            self.send_response(status)
-            self.send_header("Content-Length", str(len(raw)))
-            self.end_headers()
-            self.wfile.write(raw)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                pass  # the client gave up first (the timeout test): expected, nothing to report
 
         def do_GET(self):
             self._reply("GET")

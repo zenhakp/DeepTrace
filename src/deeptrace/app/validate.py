@@ -58,13 +58,25 @@ def _matches(n: str, known: Sequence[str]) -> bool:
     return any(round(float(k), places) == float(n) for k in known)
 
 
+def grounding_facts(digest: Digest, keys: Sequence[str]) -> List[str]:
+    """The facts a text about these sections may use: the LLM facts, or the shown facts for a section that is never
+    explained by the LLM (limitations and warnings, which Q&A may quote)."""
+    return [f for k in keys for f in (digest.section(k).llm_facts or digest.section(k).facts)]
+
+
 def check_section(digest: Digest, key: str, text: str) -> List[str]:
+    """One explanation section, checked against that section's facts only."""
+    return check_text(digest, text, [key])
+
+
+def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
+    """A text grounded on the given sections (one for an explanation section; the cited ones for a Q&A answer)."""
     if not isinstance(text, str) or not text.strip():
         return ["empty: no text"]
     if digest.status == "NO_FACE":
         found = NO_FACE_WORDS.findall(text) + NUMBER.findall(text)
         return [f"no_face: NO_FACE has no verdict, but the text uses {sorted(set(found))}"] if found else []
-    facts = " ".join(digest.section(key).llm_facts)
+    facts = " ".join(grounding_facts(digest, keys))
     known = NUMBER.findall(facts)
     problems = [f"banned_word: {m.group(0)!r}" for m in BANNED.finditer(DISCLAIMER.sub(" ", text))]
     problems += [f"percent_score: {m.group(0)!r}" for m in PERCENT_SCORE.finditer(text)]
@@ -77,9 +89,9 @@ def check_section(digest: Digest, key: str, text: str) -> List[str]:
     problems += [f"probability_as_certainty: {m.group(0)!r}" for m in PROBABILITY_VALUE.finditer(text)
                  if float(m.group(1)) in (0.0, 1.0)
                  and not re.search(rf"probability (?:of )?{re.escape(m.group(1))}(?![\d.])", facts)]
-    if key == "evidence" and PROBABILITY.search(text):
+    if list(keys) == ["evidence"] and PROBABILITY.search(text):
         problems.append("region_probability: the regions section mentions a probability; regions have none")
-    if key == "stability" and digest.points_lost:
+    if "stability" in keys and digest.points_lost:
         for clause in CLAUSE.split(text):
             if COST.search(clause):
                 problems += [f"cost_not_points_lost: {n} is not one of the points lost {list(digest.points_lost)}"

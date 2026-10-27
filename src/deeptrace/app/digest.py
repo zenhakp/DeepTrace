@@ -64,7 +64,7 @@ def _p(x: float) -> str:
     return f"{x:.2f}"
 
 
-def _prob(x: float) -> str:
+def prob_text(x: float) -> str:
     """A detector probability. 0.9994 must not read as "1.00" (certainty), nor 0.003 as "0.00"."""
     return "above 0.99" if x > 0.99 and x < 1 else "below 0.01" if 0 < x < 0.01 else _p(x)
 
@@ -101,8 +101,8 @@ def _prediction(d: Dict[str, Any]) -> List[str]:
         facts.append(f"{sum(f['prediction'] == 'MANIPULATED' for f in face)} of the {len(face)} frames with a usable "
                      f"face were predicted MANIPULATED.")
     else:
-        facts.append(f"The detector assigned a fake-class probability of {_prob(d['fake_probability'])}.")
-    facts.append(f"Confidence (the probability of the predicted class) is {_prob(d['confidence'])}; it is "
+        facts.append(f"The detector assigned a fake-class probability of {prob_text(d['fake_probability'])}.")
+    facts.append(f"Confidence (the probability of the predicted class) is {prob_text(d['confidence'])}; it is "
                  f"uncalibrated and is not forensic certainty.")
     return facts
 
@@ -129,7 +129,7 @@ def _evidence(d: Dict[str, Any]) -> Tuple[List[str], List[str]]:
                           if r["frame"] == k) or "none"
         p = f.get("fake_probability")
         head = f"Key frame at {_t(f.get('time_s', 0.0))}: prediction {f.get('prediction')}"
-        shown.append(f"{head}, fake-class probability {'n/a' if p is None else _prob(p)}, evidence strength "
+        shown.append(f"{head}, fake-class probability {'n/a' if p is None else prob_text(p)}, evidence strength "
                      f"{strength}; region position(s) in the face crop: {where}.")
         llm.append(f"{head}, evidence strength {strength}; region position(s) in the face crop: {where}.")
     return shown, llm + ([NOT_PIXELS] if regions else [])
@@ -187,8 +187,8 @@ def _temporal(d: Dict[str, Any]) -> List[str]:
                      f"{ts['label_flips']} label flip(s).")
     for i in d["suspicious_intervals"]:
         facts.append(f"Suspicious interval from {_t(i['start_s'])} to {_t(i['end_s'])}: {i['suspicious_frames']} "
-                     f"suspicious sampled frame(s), mean fake-class probability {_prob(i['mean_fake_probability'])}, "
-                     f"maximum {_prob(i['max_fake_probability'])}.")
+                     f"suspicious sampled frame(s), mean fake-class probability {prob_text(i['mean_fake_probability'])}, "
+                     f"maximum {prob_text(i['max_fake_probability'])}.")
     if not d["suspicious_intervals"]:
         facts.append("No suspicious interval (2 or more sampled frames in a row leaning MANIPULATED) was found.")
     for i in d["isolated_suspicious_frames"]:

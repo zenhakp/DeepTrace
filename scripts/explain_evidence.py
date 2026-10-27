@@ -3,8 +3,8 @@
   ollama serve                       (in a separate terminal first; without it the template text is used)
   python scripts/explain_evidence.py docs/part2_evidence_examples/example_image.json
   python scripts/explain_evidence.py "$HOME/Downloads/deeptrace_outputs/evidence/2_evidence.json" --no-llm
-Writes <stem>_explanation.json to --out-dir (default ~/Downloads/deeptrace_outputs/explanations; must be outside
-the repository). Each LLM text is checked against the evidence; a rejected one shows the template text and its
+Writes <stem>_explanation.json and <stem>_report.md to --out-dir (default ~/Downloads/deeptrace_outputs/explanations;
+must be outside the repository). The report links overlay images by name, so they show when it sits next to them. Each LLM text is checked against the evidence; a rejected one shows the template text and its
 problems. Quote paths with spaces.
 """
 import argparse
@@ -15,6 +15,7 @@ from pathlib import Path
 from deeptrace.app.evidence import REPO_ROOT, EvidenceError, load_evidence
 from deeptrace.app.explain import explain
 from deeptrace.app.llm import LLMUnavailable
+from deeptrace.app.report import render_markdown
 
 
 def main() -> None:
@@ -45,9 +46,11 @@ def main() -> None:
             print(f"NOTE: {n}")
         for s in ex.sections:
             print(f"\n## {s.title} [{s.source}{', LLM text rejected' if s.problems else ''}]\n{s.text}")
-        target = out / f"{ev.source.stem.replace('_evidence', '')}_explanation.json"
+        stem = ev.source.stem.replace("_evidence", "")
+        target = out / f"{stem}_explanation.json"
         target.write_text(json.dumps(asdict(ex), indent=2), encoding="utf-8")
-        print(f"\n-> {target}\n")
+        (out / f"{stem}_report.md").write_text(render_markdown(ev, ex), encoding="utf-8")
+        print(f"\n-> {target}\n-> {out / f'{stem}_report.md'}\n")
 
 
 if __name__ == "__main__":
