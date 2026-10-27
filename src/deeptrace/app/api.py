@@ -4,7 +4,7 @@
 
   GET  /api/health                      checkpoint found? LLM reachable and model installed?
   POST /api/jobs                        upload one image or video (multipart field "file") -> 202 + job
-  GET  /api/jobs                        all jobs of this server run, newest first (summaries)
+  GET  /api/jobs                        all jobs in the jobs folder, newest first (summaries)
   GET  /api/jobs/{id}                   state, error, evidence, explanation (template at once, LLM text later)
   GET  /api/jobs/{id}/files/{name}      an overlay PNG listed in the evidence artifacts (nothing else)
   GET  /api/jobs/{id}/report            the Markdown report (current explanation + answers)
@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 
 from deeptrace.app.evidence import REPO_ROOT
-from deeptrace.app.jobs import Job, JobRunner
+from deeptrace.app.jobs import JOB_ID, Job, JobRunner
 from deeptrace.app.llm import DEFAULT_CONFIG, LLMSettings, LLMUnavailable, check
 from deeptrace.app.pipeline import (IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, checkpoint_path, media_type_of,
                                     run_analysis)
@@ -35,7 +35,6 @@ from deeptrace.app.qa import QuestionError
 from deeptrace.app.report import render_markdown
 from deeptrace.common.config import load_config
 
-JOB_ID = re.compile(r"^[0-9a-f]{32}$")
 CHUNK = 1024 * 1024
 
 
@@ -105,7 +104,7 @@ def create_app(settings: Optional[AppSettings] = None, runner: Optional[JobRunne
     def get_job(job_id: str) -> Job:
         job = runner.get(job_id) if JOB_ID.match(job_id) else None
         if job is None:
-            raise _error(404, "job_not_found", f"no job {job_id!r} in this server run")
+            raise _error(404, "job_not_found", f"no job {job_id!r}")
         return job
 
     def done_job(job_id: str) -> Job:

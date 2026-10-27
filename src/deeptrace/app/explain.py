@@ -147,3 +147,11 @@ def explain(ev: Evidence, settings: Optional[LLMSettings] = None, llm: Callable 
             sections.append(_section(s, text.strip()))
     return Explanation(tuple(sections), tuple(notes), reply.model, round(reply.total_s, 1), reply.prompt_tokens,
                        reply.output_tokens)
+
+
+def explanation_from_dict(d: Dict[str, Any]) -> Explanation:
+    """The inverse of dataclasses.asdict(explanation) (used when job records are read back from disk)."""
+    sections = tuple(ExplainedSection(s["key"], s["title"], tuple(s["facts"]), s["text"], s["source"],
+                                      tuple(s.get("problems", ()))) for s in d["sections"])
+    return Explanation(sections, tuple(d["notes"]), d.get("model"), d.get("seconds"), d.get("prompt_tokens"),
+                       d.get("output_tokens"))

@@ -118,3 +118,9 @@ def ask(ev: Evidence, question: str, settings: Optional[LLMSettings] = None, llm
                       [f"The answer did not pass the evidence checks ({'; '.join(problems)})."])
     return Answer(q, text.strip(), "llm", tuple(keys), tuple(grounding_facts(digest, keys)),
                   model=reply.model, seconds=round(reply.total_s, 1))
+
+
+def answer_from_dict(d: Dict[str, Any]) -> Answer:
+    """The inverse of dataclasses.asdict(answer) (used when job records are read back from disk)."""
+    return Answer(d["question"], d["text"], d["source"], tuple(d["sections"]), tuple(d["facts"]),
+                  tuple(d.get("problems", ())), tuple(d.get("notes", ())), d.get("model"), d.get("seconds"))
