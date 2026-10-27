@@ -38,5 +38,13 @@
     "text": "The detector assigned a fake-class probability of 0.91. This means the model has predicted that the video is manipulated.",
     "problem": "NO_FACE has no verdict and no probability; 0.91 is the example number from score_semantics",
     "source": "llama3.2:3b, step 2 benchmark"
+  },
+  {
+    "id": "video_probability_in_regions_section",
+    "evidence": "example_video",
+    "section": "evidence",
+    "text": "The detector assigned a fake-class probability of 0.99 over 11 frames with a usable face. Three model-indicated suspicious regions were found: at middle-right, middle-right, and lower-centre of the face crop in key frames at 1.0 s, 2.0 s, and 5.0 s respectively.",
+    "problem": "accurate, but states the video-level probability in the regions section, whose facts have none; rejected by design (section-scoped checks)",
+    "source": "qwen3:4b-instruct, step 3 re-run on PixVerse (same LLM facts as example_video)"
   }
 ]

@@ -1,8 +1,8 @@
-"""Real LLM failures (tests/data/llm_known_failures.json) that the step 4 validator must reject.
+"""Real LLM answers: known failures must be rejected, known good answers must pass (no over-strict validator).
 
-Until step 4 adds deeptrace.app.validate, these are expected failures (strict xfail on ImportError). When the module
-exists they run for real: a case the validator lets through is then a test failure, and the xfail marker must be
-removed (strict=True turns an unexpected pass into a failure, so it cannot be forgotten).
+tests/data/llm_known_failures.json: wrong (or, where its "problem" says so, rejected by design) section texts.
+tests/data/llm_known_good.json: accurate section texts from the step 3 live run, checked by reading them.
+Both hold the exact text the models wrote; add every new real failure here before changing a rule.
 """
 import json
 from pathlib import Path
@@ -11,22 +11,30 @@ import pytest
 
 from deeptrace.app.digest import build_digest
 from deeptrace.app.evidence import REPO_ROOT, load_evidence
+from deeptrace.app.validate import check_section
 
-CASES = json.loads((Path(__file__).parent / "data" / "llm_known_failures.json").read_text(encoding="utf-8"))
+DATA = Path(__file__).parent / "data"
+FAILURES = json.loads((DATA / "llm_known_failures.json").read_text(encoding="utf-8"))
+GOOD = json.loads((DATA / "llm_known_good.json").read_text(encoding="utf-8"))
 EXAMPLES = REPO_ROOT / "docs" / "part2_evidence_examples"
 
 
-def test_known_failure_cases_are_well_formed():
-    assert len({c["id"] for c in CASES}) == len(CASES)
-    for c in CASES:
-        dg = build_digest(load_evidence(EXAMPLES / f"{c['evidence']}.json"))
-        assert c["section"] in [s.key for s in dg.sections]
-        assert c["text"] and c["problem"] and c["source"]
+def _digest(name):
+    return build_digest(load_evidence(EXAMPLES / f"{name}.json"))
 
 
-@pytest.mark.xfail(strict=True, raises=ImportError, reason="step 4 adds deeptrace.app.validate")
-@pytest.mark.parametrize("case", CASES, ids=[c["id"] for c in CASES])
-def test_step4_validator_rejects_known_failure(case):
-    from deeptrace.app.validate import check_section  # step 4: returns a list of problems, empty if acceptable
-    dg = build_digest(load_evidence(EXAMPLES / f"{case['evidence']}.json"))
-    assert check_section(dg, case["section"], case["text"]), case["problem"]
+def test_cases_are_well_formed():
+    for cases in (FAILURES, GOOD):
+        assert len({c["id"] for c in cases}) == len(cases)
+        for c in cases:
+            assert c["section"] in [s.key for s in _digest(c["evidence"]).sections] and c["text"] and c["source"]
+
+
+@pytest.mark.parametrize("case", FAILURES, ids=[c["id"] for c in FAILURES])
+def test_known_failure_is_rejected(case):
+    assert check_section(_digest(case["evidence"]), case["section"], case["text"]), case["problem"]
+
+
+@pytest.mark.parametrize("case", GOOD, ids=[c["id"] for c in GOOD])
+def test_known_good_answer_passes(case):
+    assert check_section(_digest(case["evidence"]), case["section"], case["text"]) == []

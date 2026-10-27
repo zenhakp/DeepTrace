@@ -16,7 +16,7 @@ Every fact comes from a field of the evidence document; nothing is added from ou
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from deeptrace.app.evidence import Evidence
 
@@ -47,6 +47,8 @@ class Digest:
     status: str
     score_semantics: str
     sections: Tuple[Section, ...]
+    prediction: Optional[str] = None      # the detector's label, None for NO_FACE
+    points_lost: Tuple[str, ...] = ()     # stability points lost per component, as written in the facts
 
     def section(self, key: str) -> Section:
         return next(s for s in self.sections if s.key == key)
@@ -208,6 +210,8 @@ def build_digest(ev: Evidence) -> Digest:
             temporal = _temporal(d)
             parts.append(("temporal", temporal, temporal))
     parts.append(("limitations", limitations, []))
+    es = d["evidence_stability"]
     return Digest(d["media_type"], d["status"], d["score_semantics"],
                   tuple(Section(k, TITLES[k], tuple(f for f in facts if f), tuple(f for f in llm if f))
-                        for k, facts, llm in parts))
+                        for k, facts, llm in parts),
+                  d["prediction"], tuple(_p(v) for v in es["points_lost"].values()) if es else ())

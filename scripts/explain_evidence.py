@@ -4,7 +4,8 @@
   python scripts/explain_evidence.py docs/part2_evidence_examples/example_image.json
   python scripts/explain_evidence.py "$HOME/Downloads/deeptrace_outputs/evidence/2_evidence.json" --no-llm
 Writes <stem>_explanation.json to --out-dir (default ~/Downloads/deeptrace_outputs/explanations; must be outside
-the repository). The texts are NOT yet checked against the evidence: that is step 4. Quote paths with spaces.
+the repository). Each LLM text is checked against the evidence; a rejected one shows the template text and its
+problems. Quote paths with spaces.
 """
 import argparse
 import json
@@ -43,7 +44,7 @@ def main() -> None:
         for n in ex.notes:
             print(f"NOTE: {n}")
         for s in ex.sections:
-            print(f"\n## {s.title} [{s.source}]\n{s.text}")
+            print(f"\n## {s.title} [{s.source}{', LLM text rejected' if s.problems else ''}]\n{s.text}")
         target = out / f"{ev.source.stem.replace('_evidence', '')}_explanation.json"
         target.write_text(json.dumps(asdict(ex), indent=2), encoding="utf-8")
         print(f"\n-> {target}\n")

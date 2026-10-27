@@ -7,8 +7,9 @@ so the deterministic template text (the facts themselves) is always available:
     of the prompt and of the answer, so leaving it out roughly halves the time),
   - NO_FACE: no LLM call at all (there is no verdict to explain; a fixed text is safest),
   - LLM unavailable or unusable answer: every section uses the template, and `notes` says why,
-  - a section missing from the answer: that section uses the template.
-Step 4 adds deterministic checks of each LLM text against the evidence; a text that fails uses the template too.
+  - a section missing from the answer: that section uses the template,
+  - a section text that fails the deterministic checks (validate.py): that section uses the template, and its
+    problems are kept in `problems` and named in `notes`.
 The system prompt is the same for every file, so Ollama can reuse its processed prefix while the model is loaded.
 """
 from __future__ import annotations
@@ -20,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from deeptrace.app.digest import Digest, build_digest
 from deeptrace.app.evidence import Evidence
 from deeptrace.app.llm import LLMSettings, LLMUnavailable, chat
+from deeptrace.app.validate import check_section
 
 MAX_WORDS = 40
 SYSTEM = f"""You explain the output of a deepfake detector to a non-expert reader. The detector's result is the \
@@ -51,7 +53,8 @@ class ExplainedSection:
     title: str
     facts: Tuple[str, ...]
     text: str
-    source: str          # "llm" or "template"
+    source: str                   # "llm" or "template"
+    problems: Tuple[str, ...] = ()  # why an LLM text was rejected (then source is "template")
 
 
 @dataclass(frozen=True)
@@ -87,8 +90,9 @@ def build_messages(digest: Digest) -> List[Dict[str, str]]:
     return [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]
 
 
-def _section(s, text=None) -> ExplainedSection:
-    return ExplainedSection(s.key, s.title, s.facts, text or template_text(s.facts), "llm" if text else "template")
+def _section(s, text=None, problems=()) -> ExplainedSection:
+    return ExplainedSection(s.key, s.title, s.facts, text or template_text(s.facts), "llm" if text else "template",
+                            tuple(problems))
 
 
 def _parse(text: str) -> Dict[str, Any]:
@@ -116,9 +120,20 @@ def explain(ev: Evidence, settings: Optional[LLMSettings] = None, llm: Callable 
                            (f"The LLM explanation is unavailable ({e}); the evidence is shown as text instead.",))
     sections, notes = [], []
     for s in digest.sections:
-        text = answer.get(s.key) if s.llm_facts else None
-        if s.llm_facts and not (isinstance(text, str) and text.strip()):
+        if not s.llm_facts:
+            sections.append(_section(s))
+            continue
+        text = answer.get(s.key)
+        if not (isinstance(text, str) and text.strip()):
             notes.append(f"The LLM gave no text for '{s.title}'; the evidence is shown as text instead.")
-        sections.append(_section(s, text.strip() if isinstance(text, str) and text.strip() else None))
+            sections.append(_section(s))
+            continue
+        problems = check_section(digest, s.key, text.strip())
+        if problems:
+            notes.append(f"The LLM text for '{s.title}' did not pass the evidence checks ({'; '.join(problems)}); "
+                         f"the evidence is shown as text instead.")
+            sections.append(_section(s, problems=problems))
+        else:
+            sections.append(_section(s, text.strip()))
     return Explanation(tuple(sections), tuple(notes), reply.model, round(reply.total_s, 1), reply.prompt_tokens,
                        reply.output_tokens)
