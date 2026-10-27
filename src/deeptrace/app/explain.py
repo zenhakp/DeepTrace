@@ -107,12 +107,20 @@ def _parse(text: str) -> Dict[str, Any]:
     return answer
 
 
+NO_FACE_NOTE = "No face was found, so there is no verdict to explain; the LLM was not used."
+
+
+def template_explanation(ev: Evidence) -> Explanation:
+    """The deterministic report alone (the app shows it at once, before any LLM text exists)."""
+    digest = build_digest(ev)
+    return Explanation(tuple(_section(s) for s in digest.sections), () if ev.has_prediction else (NO_FACE_NOTE,))
+
+
 def explain(ev: Evidence, settings: Optional[LLMSettings] = None, llm: Callable = chat) -> Explanation:
     """Never raises for LLM problems: they become template sections plus a note."""
-    digest = build_digest(ev)
     if not ev.has_prediction:
-        return Explanation(tuple(_section(s) for s in digest.sections),
-                           ("No face was found, so there is no verdict to explain; the LLM was not used.",))
+        return template_explanation(ev)
+    digest = build_digest(ev)
     settings = settings or LLMSettings.from_config()
     try:
         reply = llm(build_messages(digest), settings, json_schema=output_schema(digest))

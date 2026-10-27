@@ -15,3 +15,10 @@ llm:
                                      # prompt asks for <= 40 words per section (~300 tokens for 5 sections); a
                                      # cut-off answer is not valid JSON, so the template is shown instead
   timeout_s: 300                     # CPU generation is slow; after 5 min the LLM counts as unavailable
+
+# FastAPI backend (src/deeptrace/app/api.py). Run: uvicorn deeptrace.app.api:app --host 127.0.0.1 --port 8000
+app:
+  jobs_dir: ~/Downloads/deeptrace_outputs/app_jobs  # one folder per upload; must be outside the repository
+  max_upload_mb: 100          # a 5 s 540p clip is ~1 MB and photos are a few MB; this only stops absurd uploads
+  analysis_timeout_s: 900     # measured ~13 s per image, ~45 s per 5 s video (Part 2); long videos take longer
+  run_name: mixed             # detector run: <DEEPTRACE_ROOT>/checkpoints/mixed/best.pt (v2, Part 1)
