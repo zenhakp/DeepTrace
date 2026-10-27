@@ -9,3 +9,4 @@ huggingface_hub>=0.20
 pillow>=9.0
 opencv-python-headless>=4.8
 pyarrow>=14
+jsonschema>=4.18
