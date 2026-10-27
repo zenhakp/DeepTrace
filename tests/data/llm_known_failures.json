@@ -1,0 +1,42 @@
+[
+  {
+    "id": "region_given_face_probability",
+    "evidence": "example_image",
+    "section": "evidence",
+    "text": "The detector assigned a fake-class probability of 0.65 in model-indicated suspicious regions; these regions are not ground-truth manipulated pixels. There are 3 such model-indicated suspicious regions.",
+    "problem": "0.65 is the probability for the whole face crop; a region has no probability of its own",
+    "source": "qwen3:4b-instruct, step 3 live run (also on 2_evidence)"
+  },
+  {
+    "id": "component_value_called_cost",
+    "evidence": "example_image",
+    "section": "stability",
+    "text": "The component scores are prediction 0.83, confidence 0.18, and localization 0.84. The confidence stability cost the most points (0.18), indicating the least stability in that component.",
+    "problem": "0.18 is the confidence component's value; it lost 0.25 points",
+    "source": "qwen3:4b-instruct, step 3 live run"
+  },
+  {
+    "id": "component_value_called_cost_2",
+    "evidence": "example_image",
+    "section": "stability",
+    "text": "The Evidence Stability Score is 0.64 (MEDIUM). The component with the highest cost is confidence stability at 0.18.",
+    "problem": "0.18 is the confidence component's value; it lost 0.25 points",
+    "source": "qwen3:4b-instruct, step 3 live run on 2_evidence"
+  },
+  {
+    "id": "score_as_percent_confidence",
+    "evidence": "example_image",
+    "section": "prediction",
+    "text": "The detector assigned a fake-class probability of 0.65 for the manipulated class. This means the model is 65% confident that the image is manipulated.",
+    "problem": "a score stated as a percentage of certainty (schema rule 3)",
+    "source": "llama3.2:3b, step 2 benchmark"
+  },
+  {
+    "id": "verdict_on_no_face",
+    "evidence": "example_no_face",
+    "section": "prediction",
+    "text": "The detector assigned a fake-class probability of 0.91. This means the model has predicted that the video is manipulated.",
+    "problem": "NO_FACE has no verdict and no probability; 0.91 is the example number from score_semantics",
+    "source": "llama3.2:3b, step 2 benchmark"
+  }
+]

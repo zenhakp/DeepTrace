@@ -83,6 +83,18 @@ about 2-2.5x slower (28-62 s per explanation, expected to vary with prompt lengt
 are a small sample: this is a choice between two candidates, not a quality measurement. Explanation quality in
 general is **not yet measured**. `llama3.2:3b` was removed afterwards (`ollama rm`).
 
+## Explanation timing (step 3, measured once, qwen3:4b-instruct, CPU)
+`scripts/explain_evidence.py`, one run per file; the first file includes loading the model.
+
+| version | example_image | PixVerse video |
+|---|---|---|
+| first prompt (all sections incl. limitations, no length cap) | 131.0 s | 115.6 s |
+| limitations shown verbatim instead, <= 2 sentences / 40 words per section, 500-token cap | 80.1 s (991 prompt / 266 output tokens) | 70.7 s (1175 / 291) |
+
+Still too slow to wait for, so the app shows the template report at once and fills in the LLM sections when they
+are ready (steps 6 and 8). Whether Ollama reuses the identical system prompt between requests was not confirmed:
+the reported prompt token counts did not drop.
+
 ## Uninstall (after the project)
 1. Stop Ollama fully (above).
 2. Optional, to see what is removed: `ollama list`.

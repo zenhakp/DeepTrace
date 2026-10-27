@@ -11,4 +11,7 @@ llm:
                                      # that tag is the slower "thinking" variant
   temperature: 0.0                   # most repeatable wording; the explainer must not improvise
   num_ctx: 4096                      # Ollama's default context, set explicitly to bound RAM use
+  max_output_tokens: 500             # hard cap on the answer (worst case ~70 s at the measured 7.5 tok/s). The
+                                     # prompt asks for <= 40 words per section (~300 tokens for 5 sections); a
+                                     # cut-off answer is not valid JSON, so the template is shown instead
   timeout_s: 300                     # CPU generation is slow; after 5 min the LLM counts as unavailable

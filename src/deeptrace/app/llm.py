@@ -36,6 +36,7 @@ class LLMSettings:
     model: str = "qwen3:4b-instruct"
     temperature: float = 0.0
     num_ctx: int = 4096
+    max_output_tokens: int = 500
     timeout_s: float = 300.0
     seed: int = 42
 
@@ -100,11 +101,18 @@ def check(s: LLMSettings) -> List[str]:
     return names
 
 
-def chat(messages: List[Dict[str, str]], s: LLMSettings) -> LLMReply:
-    """One non-streaming chat request. messages: [{"role": "system" | "user" | "assistant", "content": ...}]."""
+def chat(messages: List[Dict[str, str]], s: LLMSettings, json_schema: Optional[Dict[str, Any]] = None) -> LLMReply:
+    """One non-streaming chat request. messages: [{"role": "system" | "user" | "assistant", "content": ...}].
+    json_schema: if given, Ollama constrains the answer to JSON matching it (structured outputs)."""
     body = {"model": s.model, "messages": messages, "stream": False,
-            "options": {"temperature": s.temperature, "seed": s.seed, "num_ctx": s.num_ctx}}
+            "options": {"temperature": s.temperature, "seed": s.seed, "num_ctx": s.num_ctx,
+                        "num_predict": s.max_output_tokens}}
+    if json_schema is not None:
+        body["format"] = json_schema
     r = _request(s, "POST", "/api/chat", body)
+    if r.get("done_reason") == "length":
+        raise LLMUnavailable("bad_response", f"the answer was cut off at {s.max_output_tokens} tokens "
+                                             f"(llm.max_output_tokens)")
     text = (r.get("message") or {}).get("content")
     if not isinstance(text, str) or not text.strip():
         raise LLMUnavailable("bad_response", "Ollama returned no text")

@@ -72,7 +72,11 @@ def test_chat_sends_model_options_and_no_streaming(server):
     chat(MSG, s)
     body = requests[-1][2]
     assert body["model"] == s.model and body["messages"] == MSG and body["stream"] is False
-    assert body["options"] == {"temperature": 0.0, "seed": 42, "num_ctx": 4096}
+    assert body["options"] == {"temperature": 0.0, "seed": 42, "num_ctx": 4096, "num_predict": 500}
+    assert "format" not in body
+    schema = {"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}
+    chat(MSG, s, json_schema=schema)
+    assert requests[-1][2]["format"] == schema
 
 
 def test_not_running():
@@ -99,6 +103,7 @@ def test_model_missing_on_404(server):
     (200, b"<html>not json</html>"),
     (200, {"done": True}),
     (200, {**CHAT_OK, "message": {"role": "assistant", "content": "   "}}),
+    (200, {**CHAT_OK, "done_reason": "length"}),  # cut off by max_output_tokens
 ])
 def test_bad_response(server, status, body):
     s, routes, _ = server
