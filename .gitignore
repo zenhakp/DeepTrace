@@ -15,3 +15,9 @@ __pycache__/
 # added during bootstrap
 .venv_old_broken/
 .env
+
+# Part 3 frontend (Next.js): installed packages and build output
+frontend/node_modules/
+frontend/.next/
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
