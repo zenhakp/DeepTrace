@@ -13,6 +13,8 @@ Rules (schema doc "Rules for Part 3" and the project brief):
   percent_score    a score written as a percentage or as certainty ("65% confident", "65% chance")
   number_not_in_facts  every number must be one of the section's numbers (rounding allowed: 0.6518 -> 0.65)
   label_not_in_facts   REAL / MANIPULATED only where the section's facts use that label
+  label_contradicts_detector  a claim such as "the prediction is REAL" that is not the detector's label (needed
+                   because the About-the-method facts mention both labels; general rules ending in "when" pass)
   verdict_claim    the media stated as fake / real / manipulated ("the image is manipulated", "likely fake")
   probability_as_certainty  a probability may not be given as 1 or 0 ("probability of 1.00") unless the facts do
                    (the digest writes 0.9994 as "above 0.99")
@@ -38,6 +40,9 @@ PERCENT = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|percent\b)", re.I)
 PERCENT_SCORE = re.compile(r"\d+(?:\.\d+)?\s*(?:%|percent)\s*(?:chance|confident|confidence|likely|likelihood|"
                            r"probability|probable|sure|certain)", re.I)
 LABEL = re.compile(r"\b(REAL|MANIPULATED)\b")
+CLAIMED_LABEL = re.compile(r"\b(?:prediction(?:\s+for\s+this\s+\w+)?\s+(?:is|was)|predicted(?:\s+it)?(?:\s+as)?|"
+                           r"classified(?:\s+it)?(?:\s+as)?|labell?ed(?:\s+it)?(?:\s+as)?)\s+(REAL|MANIPULATED)\b"
+                           r"(?!\s+when\b)", re.I)
 VERDICT = re.compile(r"\b(?:image|video|photo|picture|face|media|frame|clip|it)\s+(?:is|was|appears to be|seems to be|"
                      r"looks)\s+(?:\w+ly\s+)?(?:a\s+)?(?:fake|real|manipulated|authentic|genuine|deepfake|forged|"
                      r"altered)\b|"
@@ -84,6 +89,8 @@ def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
                  if m.group(0) not in facts and f"{m.group(1)}%" not in facts]
     problems += [f"number_not_in_facts: {n}" for n in NUMBER.findall(text) if not _matches(n, known)]
     problems += [f"label_not_in_facts: {m.group(1)}" for m in LABEL.finditer(text) if m.group(1) not in facts]
+    problems += [f"label_contradicts_detector: {m.group(0)!r}, but the detector predicted {digest.prediction}"
+                 for m in CLAIMED_LABEL.finditer(text) if digest.prediction and m.group(1).upper() != digest.prediction]
     problems += [f"verdict_claim: {m.group(0)!r}" for m in VERDICT.finditer(text)
                  if not HEDGE.search(text[max(0, m.start() - 50):m.start()])]
     problems += [f"probability_as_certainty: {m.group(0)!r}" for m in PROBABILITY_VALUE.finditer(text)

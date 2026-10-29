@@ -49,6 +49,7 @@ class Digest:
     sections: Tuple[Section, ...]
     prediction: Optional[str] = None      # the detector's label, None for NO_FACE
     points_lost: Tuple[str, ...] = ()     # stability points lost per component, as written in the facts
+    band: Optional[str] = None            # Evidence Stability band (HIGH / MEDIUM / LOW), None if there is none
 
     def section(self, key: str) -> Section:
         return next(s for s in self.sections if s.key == key)
@@ -214,4 +215,5 @@ def build_digest(ev: Evidence) -> Digest:
     return Digest(d["media_type"], d["status"], d["score_semantics"],
                   tuple(Section(k, TITLES[k], tuple(f for f in facts if f), tuple(f for f in llm if f))
                         for k, facts, llm in parts),
-                  d["prediction"], tuple(_p(v) for v in es["points_lost"].values()) if es else ())
+                  d["prediction"], tuple(_p(v) for v in es["points_lost"].values()) if es else (),
+                  es["band"] if es else None)

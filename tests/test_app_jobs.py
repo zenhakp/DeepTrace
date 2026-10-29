@@ -9,7 +9,7 @@ from deeptrace.app.api import AppSettings, create_app
 from deeptrace.app.jobs import INTERRUPTED_NOTE, RECORD, JobRunner
 from deeptrace.app.llm import LLMSettings
 
-from test_app_api import _closed_port_settings, fake_analyze, fake_llm, make_client, upload, wait
+from test_app_api import _closed_port_settings, fake_analyze, fake_llm, make_client, upload, wait, wait_question
 
 
 def _restart(tmp_path):
@@ -22,7 +22,8 @@ def _finished_job(tmp_path, name="photo.jpg", question=True):
     with make_client(tmp_path) as c:
         job = wait(c, upload(c, name).json()["job_id"], "explanation_state", {"ready", "not_needed"})
         if question:
-            c.post(f"/api/jobs/{job['job_id']}/questions", json={"question": "Why MEDIUM?"})
+            qid = c.post(f"/api/jobs/{job['job_id']}/questions", json={"question": "Why MEDIUM?"}).json()["id"]
+            wait_question(c, job["job_id"], qid, {"answered"})
         return c.get(f"/api/jobs/{job['job_id']}").json()
 
 
@@ -37,7 +38,7 @@ def test_finished_job_is_restored_unchanged(tmp_path):
     before = _finished_job(tmp_path)
     with _restart(tmp_path) as c:
         after = c.get(f"/api/jobs/{before['job_id']}").json()
-        assert after == before  # state, evidence, LLM explanation, answers, overlays
+        assert after == before  # state, evidence, LLM explanation, questions, overlays
         assert c.get(after["overlays"]["image"]).status_code == 200
         assert "**Q:** Why MEDIUM?" in c.get(f"/api/jobs/{before['job_id']}/report").text
         assert [j["job_id"] for j in c.get("/api/jobs").json()["jobs"]] == [before["job_id"]]
@@ -118,7 +119,7 @@ def test_record_is_written_when_the_job_is_submitted(tmp_path):
     with make_client(tmp_path) as c:
         job_id = upload(c).json()["job_id"]
         record = json.loads((tmp_path / "jobs" / job_id / RECORD).read_text(encoding="utf-8"))
-        assert record["id"] == job_id and record["record_version"] == 1
+        assert record["id"] == job_id and record["record_version"] == 2
         wait(c, job_id, "explanation_state", {"ready"})
     final = json.loads((tmp_path / "jobs" / job_id / RECORD).read_text(encoding="utf-8"))
     assert final["state"] == "done" and final["explanation_state"] == "ready"
@@ -157,3 +158,29 @@ def test_a_briefly_locked_record_is_retried(tmp_path, monkeypatch):
         job_id = wait(c, upload(c).json()["job_id"], "explanation_state", {"ready"})["job_id"]
     record = json.loads((tmp_path / "jobs" / job_id / RECORD).read_text(encoding="utf-8"))
     assert record["explanation_state"] == "ready"
+
+
+@pytest.mark.parametrize("state", ["pending", "answering"])
+def test_interrupted_question_becomes_failed(tmp_path, state):
+    job = _finished_job(tmp_path)
+    q = {**job["questions"][0], "state": state, "answer": None}
+    _edit_record(tmp_path, job["job_id"], questions=[q])
+    with _restart(tmp_path) as c:
+        after = c.get(f"/api/jobs/{job['job_id']}").json()["questions"][0]
+        assert after["state"] == "failed" and after["error"]["code"] == "interrupted"
+
+
+def test_version_1_records_still_load(tmp_path):
+    """Jobs saved before questions had states (record_version 1: a list of answers) are not lost."""
+    job = _finished_job(tmp_path)
+    answer = job["questions"][0]["answer"]
+    path = tmp_path / "jobs" / job["job_id"] / RECORD
+    record = json.loads(path.read_text(encoding="utf-8"))
+    del record["questions"]
+    record.update(record_version=1, answers=[answer])
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with _restart(tmp_path) as c:
+        after = c.get(f"/api/jobs/{job['job_id']}").json()
+        assert [(q["state"], q["answer"]) for q in after["questions"]] == [("answered", answer)]
+        assert "**Q:** Why MEDIUM?" in c.get(f"/api/jobs/{job['job_id']}/report").text
+    assert json.loads(path.read_text(encoding="utf-8"))["record_version"] == 2  # rewritten in the new form

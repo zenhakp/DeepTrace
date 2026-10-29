@@ -56,6 +56,8 @@ def render_markdown(ev: Evidence, explanation: Explanation, answers: Sequence[An
         lines += ["## Questions and answers", ""]
         for a in answers:
             lines += [f"**Q:** {a.question}", "", f"**A:** {a.text}", ""]
+            if a.suggestions:
+                lines += ["Questions this analysis can answer:", ""] + [f"- {s}" for s in a.suggestions] + [""]
             if a.facts:
                 lines += ["Evidence used:", ""] + [f"- {f}" for f in a.facts] + [""]
     if explanation.model:

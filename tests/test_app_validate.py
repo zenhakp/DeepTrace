@@ -44,7 +44,7 @@ def test_real_prediction_never_definitely_fake():
 
 def test_real_prediction_cannot_be_called_manipulated():
     problems = check_section(_dg(_real_image()), "prediction", "The detector's prediction is MANIPULATED.")
-    assert _rules(problems) == {"label_not_in_facts"}
+    assert _rules(problems) == {"label_not_in_facts", "label_contradicts_detector"}
 
 
 @pytest.mark.parametrize("text", ["The image is REAL.", "The detector found it authentic.",

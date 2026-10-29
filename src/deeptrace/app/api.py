@@ -8,10 +8,11 @@
   GET  /api/jobs/{id}                   state, error, evidence, explanation (template at once, LLM text later)
   GET  /api/jobs/{id}/files/{name}      an overlay PNG listed in the evidence artifacts (nothing else)
   GET  /api/jobs/{id}/report            the Markdown report (current explanation + answers)
-  POST /api/jobs/{id}/questions         {"question": "..."} -> grounded answer (waits for the LLM)
+  POST /api/jobs/{id}/questions         {"question": "..."} -> 202 + queued question (answered in the background)
 
 Errors are {"detail": {"code", "message"}} with a fitting HTTP status. Poll GET /api/jobs/{id}: "state" says when
-the report is ready, "explanation_state" when the LLM text is (see jobs.py). The detector is the source of truth;
+the report is ready, "explanation_state" when the LLM text is, and each question's "state" when it is answered
+(see jobs.py). No request waits for the LLM. The detector is the source of truth;
 this API only runs it (scripts/analyze.py) and explains its evidence.
 """
 from __future__ import annotations
@@ -51,7 +52,7 @@ class AppSettings:
         return cls(Path(a["jobs_dir"]).expanduser(), a["max_upload_mb"], a["analysis_timeout_s"], a["run_name"])
 
 
-class Question(BaseModel):
+class QuestionBody(BaseModel):
     question: str
 
 
@@ -78,7 +79,7 @@ def job_view(job: Job) -> Dict[str, Any]:
             "evidence": ev.data if ev else None,
             "explanation": asdict(job.explanation) if job.explanation else None,
             "overlays": {k: f"/api/jobs/{job.id}/files/{name}" for k, name in ev.overlay_files().items()} if ev else {},
-            "answers": [asdict(a) for a in job.answers]}
+            "questions": [asdict(q) for q in job.questions]}
 
 
 def create_app(settings: Optional[AppSettings] = None, runner: Optional[JobRunner] = None,
@@ -170,13 +171,13 @@ def create_app(settings: Optional[AppSettings] = None, runner: Optional[JobRunne
         return PlainTextResponse(render_markdown(job.evidence, job.explanation, job.answers),
                                  media_type="text/markdown; charset=utf-8")
 
-    @app.post("/api/jobs/{job_id}/questions")
-    def question(job_id: str, body: Question) -> Dict[str, Any]:
+    @app.post("/api/jobs/{job_id}/questions", status_code=202)
+    def question(job_id: str, body: QuestionBody) -> Dict[str, Any]:
         job = done_job(job_id)
         try:
             return asdict(runner.ask(job.id, body.question))
-        except QuestionError as e:
-            raise _error(400, e.code, str(e)) from None
+        except QuestionError as e:  # a question already open is a conflict (409), a bad question a 400
+            raise _error(409 if e.code == "question_in_progress" else 400, e.code, str(e)) from None
 
     return app
 
