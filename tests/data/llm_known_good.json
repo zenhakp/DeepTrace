@@ -1,0 +1,58 @@
+[
+  {
+    "id": "example_image_prediction",
+    "evidence": "example_image",
+    "section": "prediction",
+    "text": "The detector assigned a fake-class probability of 0.65. The prediction is MANIPULATED, with confidence also at 0.65; neither value is calibrated or a measure of forensic certainty.",
+    "source": "qwen3:4b-instruct, step 3 re-run on example_image"
+  },
+  {
+    "id": "example_image_evidence",
+    "evidence": "example_image",
+    "section": "evidence",
+    "text": "The detector indicated three suspicious regions: rank 1 in the middle-left of the face crop, rank 2 in the middle-right, and rank 3 in the lower-centre. These regions show where the attribution map was strongest and are not ground-truth manipulated pixels.",
+    "source": "qwen3:4b-instruct, step 3 re-run on example_image"
+  },
+  {
+    "id": "example_image_stability",
+    "evidence": "example_image",
+    "section": "stability",
+    "text": "The Evidence Stability Score is 0.64, in the MEDIUM band. The prediction component value is 0.83 and lost 0.07 points; confidence is 0.18 and lost 0.25 points; localization is 0.84 and lost 0.05 points. The confidence component lost the most points.",
+    "source": "qwen3:4b-instruct, step 3 re-run on example_image"
+  },
+  {
+    "id": "example_image_robustness",
+    "evidence": "example_image",
+    "section": "robustness",
+    "text": "10 out of 12 perturbed runs maintained the prediction. The fake-class probability changed by an average of 0.21 under perturbations, with a largest change of 0.38. Under JPEG quality 50 and brightness x1.1, the prediction shifted to REAL.",
+    "source": "qwen3:4b-instruct, step 3 re-run on example_image"
+  },
+  {
+    "id": "example_video_prediction",
+    "evidence": "example_video",
+    "section": "prediction",
+    "text": "The detector assigned a fake-class probability of 0.99. The prediction is MANIPULATED for all 11 frames with a usable face.",
+    "source": "qwen3:4b-instruct, step 3 re-run on PixVerse (same LLM facts as example_video)"
+  },
+  {
+    "id": "example_video_stability",
+    "evidence": "example_video",
+    "section": "stability",
+    "text": "The Evidence Stability Score is 0.97, band HIGH. Prediction value is 1.00, confidence is 0.96, localization is 0.93; localization lost 0.02 points.",
+    "source": "qwen3:4b-instruct, step 3 re-run on PixVerse (same LLM facts as example_video)"
+  },
+  {
+    "id": "example_video_robustness",
+    "evidence": "example_video",
+    "section": "robustness",
+    "text": "All 12 perturbed runs at key frames 1.0 s, 2.0 s, and 5.0 s kept the prediction. No prediction flips or lost faces were observed in these runs.",
+    "source": "qwen3:4b-instruct, step 3 re-run on PixVerse (same LLM facts as example_video)"
+  },
+  {
+    "id": "example_video_temporal",
+    "evidence": "example_video",
+    "section": "temporal",
+    "text": "Temporal stability is 1.00: 10 of 10 consecutive frame pairs kept the same label. Mean fake-class probability is 0.99 across 11 frames from 0.0 s to 5.0 s, with maximum above 0.99.",
+    "source": "qwen3:4b-instruct, step 3 re-run on PixVerse (same LLM facts as example_video)"
+  }
+]
