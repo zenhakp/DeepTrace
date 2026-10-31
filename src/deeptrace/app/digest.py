@@ -51,6 +51,8 @@ class Digest:
     points_lost: Tuple[str, ...] = ()     # stability points lost per component, as written in the facts
     band: Optional[str] = None            # Evidence Stability band (HIGH / MEDIUM / LOW), None if there is none
     band_capped: bool = False             # True when a flip or NO_FACE lowered the band below what the score gives
+    score: Optional[float] = None         # the Evidence Stability Score, None if there is none
+    thresholds: Tuple[float, ...] = ()    # the band thresholds (HIGH, MEDIUM), None-free; empty if no score
 
     def section(self, key: str) -> Section:
         return next(s for s in self.sections if s.key == key)
@@ -150,8 +152,13 @@ def _stability(d: Dict[str, Any]) -> Tuple[List[str], List[str]]:
              f"{_p(c[es['driver']])}."]
     extra = ([es["cap_reason"]] if es["band_capped"] else []) + ([es["bias_note"]] if es.get("bias_note") else [])
     shown = [es["summary"]] + clear + extra + [es["note"]]
+    bands = es["bands"]
+    band_facts = [f"Band thresholds (project-defined): HIGH at {_p(bands['high'])} or above, MEDIUM at "
+                  f"{_p(bands['medium'])} or above, LOW below {_p(bands['medium'])}."]
+    if es["band_capped"]:  # the LLM must be told what the score alone would give, or it invents a reason
+        band_facts.append(f"Without the cap, the score {_p(es['score'])} would give band {es['band_uncapped']}.")
     llm = [f"Evidence Stability Score: {_p(es['score'])}, band {es['band']}. It is a project-defined 0 to 1 score "
-           f"with HIGH / MEDIUM / LOW bands, not a probability of manipulation."] + clear + extra
+           f"with HIGH / MEDIUM / LOW bands, not a probability of manipulation."] + band_facts + clear + extra
     return shown, llm
 
 
@@ -217,4 +224,5 @@ def build_digest(ev: Evidence) -> Digest:
                   tuple(Section(k, TITLES[k], tuple(f for f in facts if f), tuple(f for f in llm if f))
                         for k, facts, llm in parts),
                   d["prediction"], tuple(_p(v) for v in es["points_lost"].values()) if es else (),
-                  es["band"] if es else None, bool(es and es["band_capped"]))
+                  es["band"] if es else None, bool(es and es["band_capped"]),
+                  es["score"] if es else None, (es["bands"]["high"], es["bands"]["medium"]) if es else ())

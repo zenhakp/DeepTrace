@@ -13,7 +13,7 @@ from deeptrace.app.validate import check_text
 
 EXAMPLES = REPO_ROOT / "docs" / "part2_evidence_examples"
 SETTINGS = LLMSettings()
-Q = "Why is the stability MEDIUM?"
+Q = "What does the stability section show?"
 
 
 def _ev(name):
@@ -139,7 +139,7 @@ def test_false_band_premise_is_corrected_without_the_llm():
 
 
 @pytest.mark.parametrize("question", [
-    "Why is the evidence stability HIGH?",                 # the real band: a normal question
+    "What does the evidence stability HIGH band mean?",    # the real band, no why
     "Why is confidence stability so low?",                 # a component, not the band
     "What is the difference between a HIGH and a MEDIUM band?",
 ])
@@ -257,10 +257,13 @@ def test_suggested_questions_are_answerable_for_this_file(name):
     dg = qa_digest(_ev(name))
     offered = suggestions(dg)
     assert len(offered) == 3
-    for q in offered:  # none of them is refused up front or treated as a false premise
+    for q in offered:  # none is refused up front; the band question is answered from the evidence, the rest go to the LLM
         calls = []
         a = ask(_ev(name), q, SETTINGS, fake_llm({"answerable": False, "answer": "", "sections": []}, calls=calls))
-        assert len(calls) == 1 and a.kind == "not_covered"
+        if q.startswith("Why is the Evidence Stability"):
+            assert calls == [] and a.kind == "correction" and a.checked
+        else:
+            assert len(calls) == 1 and a.kind == "not_covered"
 
 
 def test_no_suggestions_for_no_face():
@@ -276,3 +279,37 @@ def test_no_suggestions_for_no_face():
 def test_answers_saved_before_kinds_existed_get_one(text, kind):
     a = answer_from_dict({"question": "q", "text": text, "source": "fixed", "sections": [], "facts": []})
     assert a.kind == kind and a.suggestions == ()
+
+
+# --- 'why is the band X / why not HIGH' is answered from the evidence, not by the LLM ---
+
+def _capped_ev():
+    d = json.loads((EXAMPLES / "example_image.json").read_text(encoding="utf-8"))
+    d["evidence_stability"].update(score=0.82, band="MEDIUM", band_uncapped="HIGH", band_capped=True,
+                                   cap_reason="1 prediction flip(s) and 0 lost face(s) in 12 runs; any flip or "
+                                              "NO_FACE caps the band at MEDIUM (project rule). The score is unchanged.")
+    from deeptrace.app.evidence import check_evidence
+    return check_evidence(d)
+
+
+@pytest.mark.parametrize("question", ["Why is the Evidence Stability MEDIUM?", "Why is it not HIGH?",
+                                      "why is the stability band not high"])
+def test_capped_band_question_is_answered_from_the_evidence(question):
+    calls = []
+    a = ask(_capped_ev(), question, SETTINGS, fake_llm(calls=calls))
+    assert calls == [] and (a.source, a.kind, a.sections) == ("fixed", "correction", ("stability",))
+    assert "Without the cap, the score 0.82 would give band HIGH." in a.text
+    assert "caps the band at MEDIUM" in a.text and "below 0.80" not in a.text
+    assert a.checked
+
+
+def test_uncapped_band_question_gives_thresholds_and_driver():
+    a = ask(_ev("video"), "Why is the evidence stability not MEDIUM?", SETTINGS, fake_llm())
+    assert a.kind == "correction" and "Band thresholds" in a.text and "lost the most points" in a.text
+
+
+def test_band_reason_does_not_fire_on_other_questions():
+    calls = []
+    ask(_capped_ev(), "Why is confidence stability so low?", SETTINGS,
+        fake_llm({"answerable": False, "answer": "", "sections": []}, calls=calls))
+    assert len(calls) == 1
