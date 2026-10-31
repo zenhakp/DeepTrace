@@ -19,6 +19,7 @@ Rules (schema doc "Rules for Part 3" and the project brief):
   probability_as_certainty  a probability may not be given as 1 or 0 ("probability of 1.00") unless the facts do
                    (the digest writes 0.9994 as "above 0.99")
   region_probability   the regions section has no probability (regions have none of their own)
+  cap_misattributed when the band was capped: stability called low, or lost points given as the reason for the band
   cost_not_points_lost a number in a clause about cost / points lost must be one of the points lost
 Known gap: a wrong number that also occurs elsewhere in the same section passes (for example "the maximum was 1.00"
 in a video's temporal section, which also says "temporal stability is 1.00"), unless a rule above names the clause.
@@ -54,6 +55,10 @@ PROBABILITY = re.compile(r"\bprobabilit(?:y|ies)\b", re.I)
 # the number that is the probability's value: "probability of 1.00", "probability was 1", "probability is at 0"
 PROBABILITY_VALUE = re.compile(r"\bprobabilit(?:y|ies)(?:\s+(?:of|was|is|at|reached|equal to)){0,2}\s+"
                                r"(\d+(?:\.\d+)?)(?!\w|\.\d)", re.I)
+BAND_WORD = re.compile(r"\b(?:HIGH|MEDIUM|LOW)\b")
+CAP_WORD = re.compile(r"\bcap(?:s|ped|ping)?\b", re.I)
+LOW_STABILITY = re.compile(r"\b(?:overall\s+)?stability\s+(?:is|was|remains)\s+(?:not\s+high|low|weak|poor)\b|"
+                           r"\b(?:unstable|not\s+(?:very\s+)?stable)\b", re.I)
 CLAUSE = re.compile(r"[;,.]\s|\band\b")
 
 
@@ -104,4 +109,12 @@ def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
                 problems += [f"cost_not_points_lost: {n} is not one of the points lost {list(digest.points_lost)}"
                              for n in NUMBER.findall(clause) if n not in ("1.00", "1") and
                              not _matches(n, digest.points_lost)]
+    if "stability" in keys and digest.band_capped:
+        # the band was lowered by the cap rule, not by a low score: do not give lost points as the reason, and do
+        # not call the stability low (the shown score is above the band's threshold)
+        problems += [f"cap_misattributed: {m.group(0)!r}, but the band was capped and the score is not low"
+                     for m in LOW_STABILITY.finditer(text)]
+        problems += [f"cap_misattributed: a clause gives lost points as the reason for the band: {c.strip()!r}"
+                     for c in CLAUSE.split(text)
+                     if BAND_WORD.search(c) and COST.search(c) and not CAP_WORD.search(c)]
     return list(dict.fromkeys(problems))  # keep order, drop repeats
