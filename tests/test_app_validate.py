@@ -136,3 +136,28 @@ def test_explain_replaces_a_rejected_section_with_the_template():
     assert _rules(by_key["evidence"].problems) == {"number_not_in_facts", "region_probability"}
     assert by_key["prediction"].source == "llm" and by_key["prediction"].problems == ()
     assert len(ex.notes) == 1 and "did not pass the evidence checks" in ex.notes[0]
+
+
+@pytest.mark.parametrize("text, ok", [
+    ("The band is MEDIUM because one of 12 perturbed runs flipped the prediction, which caps the band at MEDIUM.", True),
+    ("The score is MEDIUM as the confidence component lost the most points (0.10).", False),
+    ("The band is capped at MEDIUM by a flip, and the overall stability is not high.", False),
+    ("The band was capped at MEDIUM by one flip; the confidence component lost the most points (0.10).", True),
+])
+def test_capped_band_is_not_blamed_on_lost_points_or_low_stability(text, ok):
+    d = _doc("image")
+    d["evidence_stability"].update(band="MEDIUM", band_uncapped="HIGH", band_capped=True,
+                                   cap_reason="1 prediction flip(s) and 0 lost face(s) in 12 runs; any flip or "
+                                              "NO_FACE caps the band at MEDIUM (project rule). The score is unchanged.")
+    dg = _dg(d)
+    assert dg.band_capped
+    problems = check_section(dg, "stability", text)
+    assert ("cap_misattributed" not in _rules(problems)) is ok, problems
+
+
+def test_uncapped_band_is_not_affected_by_the_cap_rule():
+    d = _doc("image")
+    d["evidence_stability"].update(band_capped=False)
+    dg = _dg(d)
+    assert not dg.band_capped
+    assert "cap_misattributed" not in _rules(check_section(dg, "stability", "Stability is not high."))
