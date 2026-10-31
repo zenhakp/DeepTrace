@@ -161,3 +161,47 @@ def test_uncapped_band_is_not_affected_by_the_cap_rule():
     dg = _dg(d)
     assert not dg.band_capped
     assert "cap_misattributed" not in _rules(check_section(dg, "stability", "Stability is not high."))
+
+
+def _capped_doc():
+    d = _doc("image")
+    d["evidence_stability"].update(score=0.82, band="MEDIUM", band_uncapped="HIGH", band_capped=True,
+                                   cap_reason="1 prediction flip(s) and 0 lost face(s) in 12 runs; any flip or "
+                                              "NO_FACE caps the band at MEDIUM (project rule). The score is unchanged.")
+    return d
+
+
+def test_stability_facts_state_the_thresholds_and_what_the_score_alone_gives():
+    facts = " ".join(_dg(_capped_doc()).section("stability").llm_facts)
+    assert "HIGH at 0.80 or above, MEDIUM at 0.60 or above" in facts
+    assert "Without the cap, the score 0.82 would give band HIGH." in facts
+
+
+def test_a_correct_answer_about_a_capped_band_passes():
+    text = ("The score 0.82 reaches the HIGH threshold of 0.80, but one prediction flip caps the band at MEDIUM.")
+    assert check_section(_dg(_capped_doc()), "stability", text) == []
+
+
+@pytest.mark.parametrize("text", [
+    "The band is MEDIUM because it is below 0.80 and above 0.60.",
+    "The score is below 0.80, so the band is not HIGH.",
+    "The score 0.82 is under 0.80.",
+])
+def test_a_false_comparison_with_a_band_threshold_is_rejected(text):
+    assert "score_comparison" in _rules(check_section(_dg(_capped_doc()), "stability", text))
+
+
+@pytest.mark.parametrize("text", [
+    "The score 0.82 is above 0.80, but one prediction flip caps the band at MEDIUM.",
+    "The score is above 0.60.",
+    "The bands are HIGH at 0.80 or above and LOW below 0.60.",   # a definition, not a claim about this file
+    "The confidence component is below 0.80.",                      # not about the score
+])
+def test_true_or_unrelated_comparisons_pass(text):
+    assert "score_comparison" not in _rules(check_section(_dg(_capped_doc()), "stability", text))
+
+
+def test_the_cap_reason_itself_passes_the_checks():
+    """'0 lost face(s) in 12 runs' contains 'lost' and a number that is not a points-lost value."""
+    dg = _dg(_capped_doc())
+    assert check_section(dg, "stability", dg.section("stability").llm_facts[-1]) == []

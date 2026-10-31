@@ -193,7 +193,7 @@ def test_only_listed_overlays_are_served(tmp_path):
 def test_report_and_questions(tmp_path):
     with make_client(tmp_path) as c:
         job_id = wait(c, upload(c).json()["job_id"], "explanation_state", {"ready"})["job_id"]
-        a = c.post(f"/api/jobs/{job_id}/questions", json={"question": "Why MEDIUM?"})
+        a = c.post(f"/api/jobs/{job_id}/questions", json={"question": "What does the stability show?"})
         assert a.status_code == 202 and a.json()["state"] == "pending" and a.json()["answer"] is None
         q = wait_question(c, job_id, a.json()["id"], {"answered"})
         assert q["answer"]["source"] == "llm" and q["answer"]["sections"] == ["stability"]
@@ -203,7 +203,7 @@ def test_report_and_questions(tmp_path):
         assert len(c.get(f"/api/jobs/{job_id}").json()["questions"]) == 1  # refused questions are not kept
         r = c.get(f"/api/jobs/{job_id}/report")
         assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
-        assert r.text.startswith("# DeepTrace report: example_image.jpg") and "**Q:** Why MEDIUM?" in r.text
+        assert r.text.startswith("# DeepTrace report: example_image.jpg") and "**Q:** What does the stability show?" in r.text
 
 
 def test_jobs_list_and_safe_names(tmp_path):
@@ -243,7 +243,7 @@ def test_question_returns_at_once_and_is_answered_in_the_background(tmp_path):
         job_id = wait(c, upload(c).json()["job_id"], "explanation_state", {"ready"})["job_id"]
     with make_client(tmp_path, llm=fake_llm(gate=gate)) as c:  # restarted: the LLM now blocks until released
         started = time.time()
-        r = c.post(f"/api/jobs/{job_id}/questions", json={"question": "Why MEDIUM?"})
+        r = c.post(f"/api/jobs/{job_id}/questions", json={"question": "What does the stability show?"})
         assert r.status_code == 202 and time.time() - started < 1.0
         q = wait_question(c, job_id, r.json()["id"], {"answering"})
         assert q["answer"] is None
@@ -291,7 +291,7 @@ def test_one_question_at_a_time(tmp_path):
     with make_client(tmp_path, llm=fake_llm()) as c:
         job_id = wait(c, upload(c).json()["job_id"], "explanation_state", {"ready"})["job_id"]
     with make_client(tmp_path, llm=fake_llm(gate=gate)) as c:
-        first = c.post(f"/api/jobs/{job_id}/questions", json={"question": "Why MEDIUM?"}).json()
+        first = c.post(f"/api/jobs/{job_id}/questions", json={"question": "What does the stability show?"}).json()
         second = c.post(f"/api/jobs/{job_id}/questions", json={"question": "And why?"})
         assert second.status_code == 409 and second.json()["detail"]["code"] == "question_in_progress"
         gate.set()

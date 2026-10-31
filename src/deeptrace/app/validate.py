@@ -59,6 +59,7 @@ BAND_WORD = re.compile(r"\b(?:HIGH|MEDIUM|LOW)\b")
 CAP_WORD = re.compile(r"\bcap(?:s|ped|ping)?\b", re.I)
 LOW_STABILITY = re.compile(r"\b(?:overall\s+)?stability\s+(?:is|was|remains)\s+(?:not\s+high|low|weak|poor)\b|"
                            r"\b(?:unstable|not\s+(?:very\s+)?stable)\b", re.I)
+FACE_LOST = re.compile(r"\blost\s+faces?\b", re.I)  # '0 lost face(s) in 12 runs' is a count of runs, not points lost
 CLAUSE = re.compile(r"[;,.]\s|\band\b")
 
 
@@ -77,6 +78,28 @@ def grounding_facts(digest: Digest, keys: Sequence[str]) -> List[str]:
 def check_section(digest: Digest, key: str, text: str) -> List[str]:
     """One explanation section, checked against that section's facts only."""
     return check_text(digest, text, [key])
+
+
+COMPARE = re.compile(r"\b(below|under|above|over)\s+(\d\.\d+)", re.I)
+SCORE_SUBJECT = re.compile(r"\b(?:score|stability|it|this|band)\b|\d\.\d+", re.I)
+
+
+def _false_comparisons(digest: Digest, text: str) -> List[str]:
+    """'The score is below 0.80' when it is 0.82. Only comparisons with a band threshold are checked, and only
+    where the words before them in the same clause could be about the score (a band's definition, 'LOW below 0.60',
+    is not a claim about this file)."""
+    problems = []
+    for clause in CLAUSE.split(text):
+        for m in COMPARE.finditer(clause):
+            n = float(m.group(2))
+            before = clause[max(0, m.start() - 25):m.start()]
+            if n not in digest.thresholds or re.search(r"\b(?:HIGH|MEDIUM|LOW)\W*$", before) or \
+                    not SCORE_SUBJECT.search(before):
+                continue
+            below = m.group(1).lower() in ("below", "under")
+            if (below and not digest.score < n) or (not below and not digest.score > n):
+                problems.append(f"score_comparison: {m.group(0)!r}, but the score is {digest.score:.2f}")
+    return problems
 
 
 def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
@@ -105,7 +128,7 @@ def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
         problems.append("region_probability: the regions section mentions a probability; regions have none")
     if "stability" in keys and digest.points_lost:
         for clause in CLAUSE.split(text):
-            if COST.search(clause):
+            if COST.search(clause) and not FACE_LOST.search(clause):
                 problems += [f"cost_not_points_lost: {n} is not one of the points lost {list(digest.points_lost)}"
                              for n in NUMBER.findall(clause) if n not in ("1.00", "1") and
                              not _matches(n, digest.points_lost)]
@@ -117,4 +140,6 @@ def check_text(digest: Digest, text: str, keys: Sequence[str]) -> List[str]:
         problems += [f"cap_misattributed: a clause gives lost points as the reason for the band: {c.strip()!r}"
                      for c in CLAUSE.split(text)
                      if BAND_WORD.search(c) and COST.search(c) and not CAP_WORD.search(c)]
+    if "stability" in keys and digest.score is not None:
+        problems += _false_comparisons(digest, text)
     return list(dict.fromkeys(problems))  # keep order, drop repeats

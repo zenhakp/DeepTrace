@@ -159,6 +159,38 @@ def _correction(q: str, digest: Digest, text: str, key: str) -> Optional[Answer]
     return _fixed(q, text, digest, "correction", (key,))
 
 
+NEGATED = re.compile(r"\bnot\b|n't\b|\bnever\b", re.I)
+WHY = re.compile(r"\bwhy\b|\bhow come\b", re.I)
+UPPER_BAND = re.compile(r"\b(?:HIGH|MEDIUM|LOW)\b")
+
+
+def band_reason(digest: Digest, q: str) -> Optional[Answer]:
+    """'Why is the evidence stability MEDIUM?' / 'Why is it not HIGH?': the reason is a rule and a few numbers in the
+    evidence, so it is written from them. The LLM kept misreading the thresholds and the cap."""
+    if not digest.band or digest.score is None or not WHY.search(q):
+        return None
+    if not (STABILITY_TOPIC.search(q) or UPPER_BAND.search(q)):
+        return None
+    claimed = {w.upper() for w in BAND_WORD.findall(q)}
+    if len(claimed) != 1:
+        return None
+    negated = bool(NEGATED.search(q))
+    if not ((claimed == {digest.band}) or negated):
+        return None  # a false premise ('why only MEDIUM' on a HIGH file) is band_premise's
+    facts = digest.section("stability").llm_facts
+    pick = lambda *marks: next((f for f in facts if any(m in f for m in marks)), "")
+    parts = [facts[0], pick("Band thresholds")]
+    if digest.band_capped:
+        parts = [f"The band is {digest.band} because of a cap rule.", *parts, pick("Without the cap"),
+                 pick("caps the band")]
+    elif negated and claimed == {digest.band}:
+        parts = [f"This file's Evidence Stability band is {digest.band}.", *parts]
+    else:
+        parts += [pick("lost the most points")]
+    text = " ".join(p for p in parts if p)
+    return _correction(q, digest, text, "stability")
+
+
 def band_premise(digest: Digest, q: str) -> Optional[Answer]:
     """'Why is the evidence stability only MEDIUM?' on a file whose band is HIGH."""
     if not digest.band or not STABILITY_TOPIC.search(q):
@@ -198,7 +230,7 @@ def ask(ev: Evidence, question: str, settings: Optional[LLMSettings] = None, llm
     if IDENTITY.search(q):
         return _fixed(q, NOT_COVERED, digest, "not_covered", offer=offer,
                       notes=["The evidence says nothing about who anyone is."])
-    corrected = band_premise(digest, q)
+    corrected = band_reason(digest, q) or band_premise(digest, q)
     if corrected:
         return corrected
     settings = settings or LLMSettings.from_config()
