@@ -1,6 +1,6 @@
 # DeepTrace
 
-Intelligent Deepfake Detection and Forensic Analysis (final-year project, 3 members).
+Intelligent Deepfake Detection and Forensic Analysis
 
 Layout:
 
@@ -16,7 +16,7 @@ Default when unset: `./deeptrace_data`.
 
 Setup: `pip install -e . && pip install pytest` then `pytest`.
 
-## Part 3: run the app locally (from a clean clone)
+## run the app locally (from a clean clone)
 
 The app runs on one laptop, on CPU, with no paid API and no Colab. Tested on Windows 11 with Git Bash. Details,
 design decisions and limitations: [docs/part3_app.md](docs/part3_app.md). Demo steps:
